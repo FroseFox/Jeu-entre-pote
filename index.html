@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f6f3"><title>Round &amp; Round Inc. — Édition web</title>
+<meta name="description" content="Faites tourner une porte, accueillez les visiteurs et développez votre entreprise dans cette simulation incrémentale en noir et blanc.">
+<link rel="icon" type="image/svg+xml" href="mark.svg"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="mark.svg" alt=""><h1>Round &amp; Round <span>Inc.</span></h1></div>
+  <div class="tools"><span class="live" id="live"><i></i><span>En activité</span></span><span class="sep"></span><button class="iconBtn" id="audio" aria-label="Activer le son" title="Activer le son"></button><button class="iconBtn" id="settings" aria-label="Paramètres" title="Paramètres"></button><button class="pause" id="pause" title="Pause (P)"></button></div>
+</header>
+<main>
+  <section class="stage" aria-label="Simulation de la porte tournante">
+    <canvas id="world" aria-label="Porte tournante isométrique. Tracez des cercles sur la porte ou appuyez sur Espace pour la faire tourner."></canvas>
+    <aside class="stats plate">
+      <div class="funds"><div class="eyebrow">Trésorerie</div><div class="balance"><span class="currency big"></span><b id="cash">0</b></div></div>
+      <div class="statrow"><span><i data-i="users"></i>Visiteurs admis</span><b id="visits">0</b></div>
+      <div class="statrow"><span><i data-i="activity"></i>Débit / min</span><b id="flow">0</b></div>
+      <div class="statrow" id="gulp-info" hidden><span><i data-i="fly"></i>Aspiration</span><b id="gulp-value"></b></div>
+    </aside>
+    <div class="live-effects"><div id="timed-effects" hidden></div><div id="combo-box" hidden><b id="combo-label"></b><small id="combo-bonus"></small><span><i id="combo-bar"></i></span></div></div>
+    <button class="objective plate" id="objective" title="Afficher les objectifs">
+      <span class="objective-head"><span class="eyebrow"><i data-i="flag"></i>Objectif</span><i data-i="chevron"></i></span>
+      <strong id="objective-name">Premiers pas</strong><span class="objective-desc" id="objective-text">Accueillir 25 visiteurs</span>
+      <span class="progressline"><span class="track"><i id="progress"></i></span><b id="objective-count">0 / 25</b></span>
+    </button>
+    <div class="scene-bottom"><div class="location"><i class="locationIcon" data-i="store"></i><div><div class="eyebrow" id="siteline">Site 01</div><b id="site-name">Boutique de quartier</b></div></div>
+      <div class="spin-controls"><button id="crank"><i data-i="rotate"></i>Faire tourner<kbd>Espace</kbd></button></div>
+      <div class="viewtools"><button id="zoomout" title="Éloigner la vue" aria-label="Éloigner la vue"><i data-i="minus"></i></button><button id="zoomvalue" title="Rétablir le zoom">100 %</button><button id="zoomin" title="Rapprocher la vue" aria-label="Rapprocher la vue"><i data-i="plus"></i></button></div>
+    </div>
+    <div id="toast" role="status"></div>
+  </section>
+  <section class="workshop" aria-labelledby="shop-title">
+    <div class="shophead"><h2 id="shop-title"><i data-i="sliders"></i>Atelier</h2>
+      <div class="shop-actions"><button class="manual" id="draw-btn" hidden title="Utiliser un ticket"><i data-i="ticket"></i><span>Tirage</span><b id="ticket-count"></b></button><button class="manual" id="journal" title="Carnet de terrain" aria-label="Carnet de terrain"><i data-i="book"></i><span>Carnet</span></button><div class="tabs" aria-label="Catégories de l’atelier"><button class="active" data-tab="equip" aria-pressed="true">Équipement</button><button data-tab="ops" aria-pressed="false">Exploitation</button></div></div>
+    </div><div id="cards"></div>
+  </section>
+</main>
+<footer><span><i data-i="save"></i><span id="save-label">Sauvegarde locale</span></span><span class="gesture"><i data-i="mouse"></i>Tracez des cercles sur la porte pour accélérer.</span><button id="help"><i data-i="help"></i>Commandes</button></footer>
+<dialog id="dialog"><div class="dialog-head"><h2 id="dialog-title"></h2><button class="iconBtn" id="close" aria-label="Fermer"><i data-i="close"></i></button></div><div id="dialog-body"></div></dialog>
+<script src="icons.js"></script><script src="economy.js"></script><script src="world.js"></script><script src="event-art.js"></script><script src="branch-art.js"></script><script src="management.js"></script><script src="game.js"></script>
+</body></html>

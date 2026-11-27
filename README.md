@@ -1,12 +1,14 @@
 # Round & Round pour Unity
 
+[Télécharger le projet Unity (.zip)](https://codeload.github.com/FroseFox/Jeu-entre-pote/zip/refs/heads/unity) · [Jouer à la version web](https://frosefox.github.io/Jeu-entre-pote/)
+
 Adaptation native en C# de la version web du dépôt FroseFox/Jeu-entre-pote, inspirée de *Round and Round Inc.* de Murbong. Le projet utilise le pipeline de rendu intégré et les entrées classiques de Unity. Les personnages proches et la porte sont des objets 3D.
 
 ## Ouvrir la scène
 
 1. Décompressez le projet.
 2. Dans Unity Hub, utilisez **Add → Add project from disk** et sélectionnez le dossier contenant **Assets**, **Packages** et **ProjectSettings**.
-3. Ouvrez-le avec **Unity 6 LTS 6000.0.58f2**. Dans la fenêtre Project, double-cliquez sur **Assets/Scenes/Quartier.unity**, puis lancez **Play**.
+3. Ouvrez-le avec **Unity 6 LTS 6000.0.58f2**. Une première scène vierge ouvre automatiquement **Quartier**. Vous pouvez aussi choisir **Round and Round → Ouvrir le quartier**, puis lancer **Play**.
 
 Dans la fenêtre Game, cliquez sur la place, maintenez Espace ou tracez un cercle autour de la porte. La molette et les boutons de vue contrôlent le zoom. P met le jeu en pause.
 

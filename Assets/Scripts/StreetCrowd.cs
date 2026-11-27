@@ -12,11 +12,13 @@ public sealed class StreetCrowd : MonoBehaviour
     Mesh mesh;
     int previous=-1;
     float lastRadius;
-    void Awake(){
+    void EnsureMesh(){
+        if(mesh)return;
         mesh=new Mesh {name="Rangées de passants"};
         mesh.MarkDynamic(); GetComponent<MeshFilter>().sharedMesh=mesh;
     }
     public void SetCount(int count,float radius){
+        EnsureMesh();
         if(count==previous && Mathf.Approximately(radius,lastRadius))return;
         previous=count;lastRadius=radius;displayed=count;
         vertices.Clear();uv.Clear();triangles.Clear();

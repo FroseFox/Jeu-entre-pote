@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const storageKey='rr-inc-web-1';
-const defaultOptions={sound:false,volume:35,dark:false,zoom:1,maxPeople:95};
+const defaultOptions={sound:false,volume:35,dark:false,zoom:1,maxPeople:95,streetSize:0};
 let state=newRun(),options={...defaultOptions},angle=.27,speed=0,waiting=26,turnPart=0;
 let paused=false,tab='equip',audioContext=null,toastTimer=0,toastToken=0,storageOK=true,importing=false;
 const positive=n=>Number.isFinite(n)&&n>=0;
@@ -26,8 +26,10 @@ function restore(){
   for(const id of ['bus','train','air'])if(positive(data.runtime?.routes?.[id]))runtime.routes[id]=data.runtime.routes[id];
   const o=data.options||{};options.sound=!!o.sound;options.dark=!!o.dark;
   if(positive(o.volume))options.volume=Math.min(100,o.volume);
-  if(positive(o.zoom))options.zoom=Math.max(.65,Math.min(1.5,o.zoom));
+  if(positive(o.zoom))options.zoom=Math.max(cameraStops[0],Math.min(1.5,o.zoom));
   if([45,95,180].includes(o.maxPeople))options.maxPeople=o.maxPeople;
+  if([0,45,95,180,...crowdLimits].includes(o.streetSize))options.streetSize=o.streetSize;
+  else if(o.maxPeople===45)options.streetSize=45;
   if(Number.isFinite(data.angle))angle=data.angle;
   if(positive(data.waiting))waiting=data.waiting;
   if(positive(data.turnPart))turnPart=data.turnPart%(Math.PI/2);
@@ -40,7 +42,7 @@ function save(){
  $('save-label').textContent=storageOK?'Sauvegarde locale':'Sauvegarde indisponible';
 }
 restore();fillIcons();
-const scene=new DoorScene($('world'));scene.maxPeople=options.maxPeople;scene.seed();
+const scene=new DoorScene($('world'));scene.maxPeople=options.maxPeople;scene.seed();configureCrowd();
 let rateEvents=[],spawnClock=0,transportClock=0,eventClock=0,restEvent=0,festival=0,repair=0,combo=0,comboClock=0;
 let selectedItem=null,projection=null,holding=null,pointer=null,keySpin=false,sessionClock=0,saveClock=0,uiClock=0,lastTime=0,frameClock=0;
 function notify(msg,ms=2100){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);const id=++toastToken;toastTimer=setTimeout(()=>{if(id===toastToken)el.classList.remove('show')},ms)}
@@ -69,9 +71,43 @@ function controls(){
 }
 function togglePause(){paused=!paused;keySpin=false;holding=null;pointer=null;controls();save()}
 $('pause').onclick=togglePause;
-function zoom(d){options.zoom=Math.round(Math.max(.65,Math.min(1.5,d))*100)/100;controls();scene.render(state,options.zoom);save()}
-$('zoomin').onclick=()=>zoom(options.zoom+.1);$('zoomout').onclick=()=>zoom(options.zoom-.1);$('zoomvalue').onclick=()=>zoom(1);
-$('world').addEventListener('wheel',e=>{e.preventDefault();zoom(options.zoom+Math.sign(-e.deltaY)*.05)},{passive:false});
+function configureCrowd(){
+ if([45,95,180].includes(options.streetSize)){
+  options.maxPeople=options.streetSize;scene.maxPeople=options.maxPeople;
+  // Keep guests and people crossing the door when reducing the old cap.
+  let excess=scene.people.length-scene.maxPeople;
+  for(let i=scene.people.length-1;i>=0&&excess>0;i--){
+   const p=scene.people[i];
+   if(p.type==='walk'&&p.mode!=='inside'&&p.mode!=='flung'){scene.people.splice(i,1);excess--}
+  }
+ }
+ scene.crowd.limit=options.streetSize||crowdLimits[crowdLimits.length-1];
+ scene.crowd.fixed=options.streetSize!==0;
+ scene.crowd.init=false;
+ scene.crowd.setPopulation(state,waiting,0)
+}
+function zoom(d){
+ const next=Math.max(cameraStops[0],Math.min(1.5,d));
+ if(Math.abs(next-options.zoom)<.0001)return;
+ options.zoom=next;controls();scene.render(state,next);save()
+}
+function stepZoom(dir){
+ const next=dir>0?cameraStops.find(n=>n>options.zoom+.001):cameraStops.slice().reverse().find(n=>n<options.zoom-.001);
+ if(next!==undefined)zoom(next)
+}
+$('zoomin').onclick=()=>stepZoom(1);$('zoomout').onclick=()=>stepZoom(-1);$('zoomvalue').onclick=()=>zoom(1);
+let lastTap=-Infinity,lastWheel=-Infinity;
+function markTap(e){if(e.isPrimary!==false)lastTap=performance.now()}
+for(const id of ['world','crank']){
+ $(id).addEventListener('dblclick',e=>e.preventDefault());
+ $(id).addEventListener('pointerup',markTap)
+}
+$('cards').addEventListener('dblclick',e=>e.preventDefault());
+$('world').addEventListener('wheel',e=>{
+ e.preventDefault();const now=performance.now();
+ if(!e.deltaY||holding||pointer||now-lastTap<300||now-lastWheel<65)return;
+ lastWheel=now;stepZoom(e.deltaY<0?1:-1)
+},{passive:false});
 function nextGoal(){return milestones.find(([goal])=>state.admitted<goal)||milestones[milestones.length-1]}
 function updateHUD(){
  const [n,name]=nextGoal(),i=siteIndex(state);
@@ -132,7 +168,7 @@ function goals(){
  const [active]=nextGoal();showDialog('Objectifs',milestones.map(([n,name])=>record(name,(state.admitted>=n?'✓ ':'')+fmt(n),n===active?'highlight':state.admitted>=n?'done':'')).join(''))
 }
 $('objective').onclick=goals;
-function resetScene(){runtime=freshRuntime();scene.balloons=[];scene.bursts=[];scene.bags=[];scene.effects={};scene.invalidate();speed=0;angle=.27;turnPart=0;waiting=26;combo=0;restEvent=0;festival=0;repair=0;frameClock=0;projection=null;rateEvents=[];spawnClock=transportClock=eventClock=0;scene.people=[];scene.cars=[];scene.labels=[];scene.seed();paused=false;controls();updateHUD();refreshShop(true);save()}
+function resetScene(){runtime=freshRuntime();scene.balloons=[];scene.bursts=[];scene.bags=[];scene.effects={};scene.invalidate();speed=0;angle=.27;turnPart=0;waiting=26;combo=0;restEvent=0;festival=0;repair=0;frameClock=0;projection=null;rateEvents=[];spawnClock=transportClock=eventClock=0;scene.people=[];scene.cars=[];scene.labels=[];scene.seed();scene.crowd.reset();configureCrowd();paused=false;controls();updateHUD();refreshShop(true);save()}
 function rebirth(){
  if(state.finished){branchOffice();return}const e=availableEnergy(state);if(!e){showDialog('Réouverture','<p>À partir de 1 000 visiteurs, vous pourrez rouvrir votre entreprise avec un nouveau contrat. L’énergie cumulée finance vos avantages permanents.</p>'+record('Visiteurs accueillis',fmt(state.admitted)+' / 1 000'));return}
  showDialog('Réouverture','<p>Vous recommencez avec une nouvelle porte et votre capital de départ. Vos avantages et votre registre sont conservés. Choisissez le contrat de votre prochaine session.</p>'+record('Énergie acquise','+'+fmt(e))+'<label class="option">Contrat<select id="contract"><option value="economy">Achats à −15 %</option><option value="premium">Recettes à +35 %</option><option value="crowd">Arrivées doublées</option></select></label><button class="primary" id="reopen">Rouvrir l’entreprise</button>');
@@ -159,10 +195,10 @@ async function importSave(file){
  }catch{notify('Fichier de sauvegarde invalide')}
 }
 function settings(){
- showDialog('Paramètres','<label class="option">Thème sombre<input id="dark-mode" type="checkbox" '+(options.dark?'checked':'')+'></label><label class="option">Effets sonores<input id="sound-mode" type="checkbox" '+(options.sound?'checked':'')+'></label><label class="option">Volume<input type="range" id="volume" min="0" max="100" value="'+options.volume+'"></label><label class="option">Foule affichée<select id="crowd"><option value="45">45 visiteurs</option><option value="95">95 visiteurs</option><option value="180">180 visiteurs</option></select></label><div class="tableLabel">Transférer une partie</div><p class="subtle">Utilisez un fichier pour reprendre votre progression sur un autre navigateur ou sur GitHub Pages.</p><div class="save-pair"><button class="secondary" id="export-save">Exporter</button><button class="secondary" id="import-save">Importer</button></div><input type="file" id="save-file" accept=".json,application/json" hidden><button class="secondary" id="reset">Nouvelle partie</button>');
+ showDialog('Paramètres','<label class="option">Thème sombre<input id="dark-mode" type="checkbox" '+(options.dark?'checked':'')+'></label><label class="option">Effets sonores<input id="sound-mode" type="checkbox" '+(options.sound?'checked':'')+'></label><label class="option">Volume<input type="range" id="volume" min="0" max="100" value="'+options.volume+'"></label><label class="option">Foule dans la rue<select id="crowd"><option value="0">Selon l’affluence (jusqu’à 2 M)</option>'+[45,95,180,...crowdLimits].map(n=>'<option value="'+n+'">'+format.format(n)+' passants</option>').join('')+'</select></label><p class="subtle">La vue d’ensemble (bouton −) permet de voir les grandes foules. Les entrées et les recettes suivent la porte.</p><div class="tableLabel">Transférer une partie</div><p class="subtle">Utilisez un fichier pour reprendre votre progression sur un autre navigateur ou sur GitHub Pages.</p><div class="save-pair"><button class="secondary" id="export-save">Exporter</button><button class="secondary" id="import-save">Importer</button></div><input type="file" id="save-file" accept=".json,application/json" hidden><button class="secondary" id="reset">Nouvelle partie</button>');
  $('export-save').onclick=exportSave;$('import-save').onclick=()=>$('save-file').click();$('save-file').onchange=e=>importSave(e.target.files[0]);
  $('dark-mode').onchange=e=>{options.dark=e.target.checked;controls();save()};$('sound-mode').onchange=e=>{options.sound=e.target.checked;soundDisplay();tone('coin');save()};$('volume').oninput=e=>{options.volume=Number(e.target.value);save()};$('volume').onchange=()=>tone('coin');
- $('crowd').value=String(options.maxPeople);$('crowd').onchange=e=>{options.maxPeople=Number(e.target.value);scene.maxPeople=options.maxPeople;scene.people=scene.people.slice(0,scene.maxPeople);save()};
+ $('crowd').value=String(options.streetSize);$('crowd').onchange=e=>{options.streetSize=Number(e.target.value);configureCrowd();scene.render(state,options.zoom);save()};
  $('reset').onclick=()=>{showDialog('Nouvelle partie','<p>Effacer cette sauvegarde et repartir dans la boutique de quartier avec une nouvelle porte ? Cette action efface également les avantages permanents.</p><button class="primary" id="confirm">Effacer et recommencer</button><button class="secondary" id="cancel">Garder ma partie</button>');$('confirm').onclick=()=>{state=newRun();resetScene();$('dialog').close();notify('Nouvelle partie')};$('cancel').onclick=settings}
 }
 $('settings').innerHTML=icon('settings');$('settings').onclick=settings;
@@ -173,21 +209,21 @@ function impulse(amount=1,dir=1){
  const cap=bladeOf(state).top*(state.perks.license?1.3:1);
  speed=Math.max(0,Math.min(cap,speed+dir*amount*(1+state.levels.gear*.25)*(1+state.perks.force*.25)));runtime.manual=.55;tone('spin')
 }
-$('crank').addEventListener('pointerdown',e=>{if(e.button!==0||!canPlay())return;holding={clock:0};$('crank').setPointerCapture(e.pointerId);impulse(1.55)});
+$('crank').addEventListener('pointerdown',e=>{if(e.isPrimary===false||e.button!==0||!canPlay())return;e.preventDefault();holding={id:e.pointerId,clock:0};$('crank').setPointerCapture(e.pointerId);impulse(1.55)});
 $('crank').onclick=e=>{if(e.detail===0)impulse(1.55)};
-for(let name of ['pointerup','pointercancel','lostpointercapture'])$('crank').addEventListener(name,()=>{holding=null});
+for(let name of ['pointerup','pointercancel','lostpointercapture'])$('crank').addEventListener(name,e=>{if(holding?.id===e.pointerId)holding=null});
 function point(e){const rect=$('world').getBoundingClientRect();return {x:e.clientX-rect.left-scene.cx,y:(e.clientY-rect.top-scene.cy+15*scene.scale)/.665}}
-$('world').addEventListener('pointerdown',e=>{if(e.button!==0||!canPlay())return;const rect=$('world').getBoundingClientRect(),hit=scene.balloonAt(e.clientX-rect.left,e.clientY-rect.top);if(hit&&scene.pop(hit)){balloonReward();return}const q=point(e);pointer={clock:0,still:0,id:e.pointerId,startX:e.clientX,startY:e.clientY,angle:Math.atan2(q.y,q.x),travel:0};$('world').setPointerCapture(e.pointerId)});
+$('world').addEventListener('pointerdown',e=>{if(e.isPrimary===false||e.button!==0||!canPlay())return;e.preventDefault();const rect=$('world').getBoundingClientRect(),hit=scene.balloonAt(e.clientX-rect.left,e.clientY-rect.top);if(hit&&scene.pop(hit)){balloonReward();return}const q=point(e);pointer={clock:0,still:0,id:e.pointerId,startX:e.clientX,startY:e.clientY,angle:Math.atan2(q.y,q.x),travel:0};$('world').setPointerCapture(e.pointerId)});
 $('world').addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId||!canPlay())return;const q=point(e),a=Math.atan2(q.y,q.x);let da=Math.atan2(Math.sin(a-pointer.angle),Math.cos(a-pointer.angle));pointer.angle=a;pointer.travel+=Math.abs(da);if(Math.hypot(q.x,q.y)>13&&Math.abs(da)>.007&&Math.abs(da)<1.9){pointer.still=0;impulse(Math.abs(da)*1.8,Math.sign(da))}});
 $('world').addEventListener('pointerup',e=>{if(pointer?.id===e.pointerId){if(Math.hypot(e.clientX-pointer.startX,e.clientY-pointer.startY)<13&&pointer.travel<.3)impulse(1.6);pointer=null}});
-$('world').addEventListener('pointercancel',()=>pointer=null);
+for(const name of ['pointercancel','lostpointercapture'])$('world').addEventListener(name,e=>{if(pointer?.id===e.pointerId)pointer=null});
 let holdTime=0;
 document.addEventListener('keydown',e=>{
  if(e.ctrlKey||e.altKey||e.metaKey||$('dialog').open||/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))return;
  if(e.code==='Space'){e.preventDefault();if(!e.repeat&&canPlay()){keySpin=true;holdTime=0;impulse(1.55)}return}
  if(e.repeat)return;if(e.code==='KeyB'&&canPlay()&&scene.balloons[0]&&scene.pop(scene.balloons[0]))balloonReward();if(e.code==='KeyP'){e.preventDefault();togglePause();return}
  const match=e.code.match(/^(?:Digit|Numpad)([1-6])$/);if(match)$('cards').children[Number(match[1])-1]?.click();
- if(e.key==='+')zoom(options.zoom+.1);if(e.key==='-')zoom(options.zoom-.1)
+ if(e.key==='+')stepZoom(1);if(e.key==='-')stepZoom(-1)
 });
 document.addEventListener('keyup',e=>{if(e.code==='Space')keySpin=false});
 window.addEventListener('blur',()=>{holding=null;keySpin=false;pointer=null;save()});
@@ -309,6 +345,7 @@ function tick(dt){
   if(e.kind==='unload'){waiting+=e.count;notify('Arrivée · '+fmt(e.count)+' voyageurs')}
   if(e.kind==='vipLeft')notify('Cortège reparti · freinez pour accueillir les VIP')
  }
+ scene.crowd.setPopulation(state,waiting,dt);
  if(projection){projection.age+=dt;if(projection.age>1.15)projection=null}
 }
 
@@ -320,7 +357,7 @@ function feedback(){
 }
 function loop(now){
  let dt=lastTime?Math.min(.12,(now-lastTime)/1000):0;lastTime=now;if(canPlay())tick(dt);
- frameClock+=dt;if(frameClock>=1/45||!scene.back){scene.render(state,options.zoom);feedback();frameClock=0}
+ frameClock+=dt;if((canPlay()&&frameClock>=1/45)||!scene.back){scene.render(state,options.zoom);feedback();frameClock%=1/45}
  uiClock+=dt;if(uiClock>.13){uiClock=0;updateHUD();refreshShop()}saveClock+=dt;if(saveClock>4){saveClock=0;save()}
  requestAnimationFrame(loop)
 }

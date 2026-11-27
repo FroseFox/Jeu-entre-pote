@@ -8,6 +8,7 @@ Jeu incrémental en français. Faites tourner la porte, accueillez les visiteurs
 - Maintenez la porte, le bouton de rotation ou la barre Espace pour utiliser la manivelle assistée.
 - Cliquez sur un ballon pour lancer une affluence temporaire. La touche B éclate aussi un ballon.
 - Les touches 1 à 6 activent les cartes de l’atelier. P met en pause.
+- Dans les paramètres, « Foule dans la rue » suit l’affluence ou affiche jusqu’à 2 000 000 de passants. Le bouton − élargit la vue. Cliquez sur le pourcentage pour revenir à 100 %.
 - Le carnet de terrain conserve les visiteurs rencontrés et les pales débloquées.
 
 La progression est enregistrée dans le navigateur. Les paramètres permettent d’exporter et d’importer une partie au format JSON.

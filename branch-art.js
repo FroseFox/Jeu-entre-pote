@@ -5,7 +5,7 @@ const BranchArt = (() => {
   const pearl = '#efefea';
   const silver = '#bdc0b7';
   const glass = '#6a7068';
-  const extent = scene => 650 + Math.ceil(Math.max(scene.width, scene.height) / Math.max(.4, scene.scale));
+  const extent = scene => 650 + Math.ceil(Math.max(scene.width, scene.height) / scene.scale);
   const strip = (s, x0, x1, y0, y1, color) =>
     s.face([[x0,y0],[x1,y0],[x1,y1],[x0,y1]], color);
 
@@ -24,9 +24,10 @@ const BranchArt = (() => {
 
   function seasideFloor(s, range) {
     strip(s,-range,range,104,range,'#e8e7e1');
-    const wet = shoreline(range,0,-10);
+    const spacing=Math.max(24,4/s.scale);
+    const wet = shoreline(range,0,-10,spacing);
     s.face([...wet,[range+24,range],[-range,range]],'#cecec8');
-    const sea = shoreline(range,0,4);
+    const sea = shoreline(range,0,4,spacing);
     s.face([...sea,[range+24,range],[-range,range]],'#b7bcb7');
     for (let i = -15; i < 16; i++) {
       const x = i * 48;
@@ -40,11 +41,12 @@ const BranchArt = (() => {
 
   function seaMotion(s, time) {
     const range = extent(s);
-    const waterline = shoreline(range,time,0);
-    const dryline = shoreline(range,time,-1.9);
+    const spacing=Math.max(24,4/s.scale);
+    const waterline = shoreline(range,time,0,spacing);
+    const dryline = shoreline(range,time,-1.9,spacing);
     s.face([...dryline,...waterline.slice().reverse()],'#f3f4ed');
-    const near = shoreline(range,time,2);
-    const far = shoreline(range,0,12);
+    const near = shoreline(range,time,2,spacing);
+    const far = shoreline(range,0,12,spacing);
     s.face([...near,...far.reverse()],'#b7bcb7');
     for (let i = 0; i < 13; i++) {
       const x = -332 + (i % 6) * 120 + Math.sin(time / 4 + i) * 7;

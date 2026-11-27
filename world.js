@@ -2,9 +2,10 @@
 class DoorScene{
  constructor(canvas){
   this.canvas=canvas;this.c=canvas.getContext('2d');this.items=[];this.people=[];this.labels=[];this.cars=[];this.time=0;this.zoom=1;this.angle=.27;this.radius=116;this.width=0;this.height=0;this.cx=0;this.cy=0;this.scale=1;this.serial=0;this.back=null;this.maxPeople=95;this.branch='main';this.profile=bladeSpecs[0];this.balloons=[];this.bursts=[];this.bags=[];this.messages=[];this.effects={};
-  this.resize=new ResizeObserver(()=>this.invalidate());this.resize.observe(canvas);
+  this.crowd=new StreetCrowd(this);this.staticItems=null;this.sizeDirty=true;
+  this.resize=new ResizeObserver(()=>{this.sizeDirty=true;this.invalidate()});this.resize.observe(canvas);
  }
- invalidate(){this.back=null}
+ invalidate(){this.back=null;this.staticItems=null}
  p(x,y,z=0){return [this.cx+(x*.928-y*.373)*this.scale,this.cy+(x*.248+y*.617-z*.85)*this.scale]}
  plane(x,y){return x*.248+y*.617}
  poly(points,fill,stroke='',width=1){const c=this.c;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();if(fill){c.fillStyle=fill;c.fill()}if(stroke){c.strokeStyle=stroke;c.lineWidth=width;c.lineJoin='round';c.stroke()}}
@@ -47,7 +48,15 @@ class DoorScene{
  admit(n,fast){
   const result={flung:0,passengers:[]};
   if(!n)return result;
-  const ready=this.people.filter(p=>p.mode==='queue'&&(p.type!=='cargo'||p.y<=this.radius+31)).sort((a,b)=>Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y));
+  const ready=[];
+  for(const p of this.people){
+   if(p.mode!=='queue'||(p.type==='cargo'&&p.y>this.radius+31))continue;
+   p.doorDistance=p.x*p.x+p.y*p.y;
+   let j=ready.length;
+   if(j===8&&p.doorDistance>=ready[7].doorDistance)continue;
+   while(j&&p.doorDistance<ready[j-1].doorDistance)j--;
+   ready.splice(j,0,p);if(ready.length>8)ready.pop()
+  }
   if(!ready.length){let p=this.addPerson(4,this.radius+15);if(p)ready.push(p)}
   const count=Math.min(ready.length,Math.min(8,n));
   for(let j=0;j<count;j++){
@@ -57,6 +66,7 @@ class DoorScene{
    p.fling=fast&&j===0&&!['giant','cargo','robot'].includes(p.type);
    if(p.fling)result.flung++;else result.passengers.push(p);
   }
+  this.crowd.passage(n-result.flung,count);
   return result
  }
  transport(level,count=10,route='bus'){
@@ -74,7 +84,7 @@ class DoorScene{
   this.balloons.splice(i,1);this.bursts.push({...b,age:0});return true
  }
  update(dt,speed,angle){
-  this.speed=speed;this.angle=angle;this.time+=dt;let k=0;const r=this.radius;
+  this.speed=speed;this.angle=angle;this.time+=dt;this.crowd.update(dt,speed);let k=0;const r=this.radius;
   const events=[];
   const giant=this.people.find(a=>a.type==='giant'&&a.mode!=='out'),cargo=this.people.find(a=>a.type==='cargo'&&a.mode!=='out');
   for(const a of this.people){
@@ -134,8 +144,10 @@ class DoorScene{
   return events
  }
  setSize(){
-  const b=this.canvas.getBoundingClientRect(),w=Math.round(b.width),h=Math.round(b.height),dpr=Math.min(2,window.devicePixelRatio||1);
-  if(w!==this.width||h!==this.height||dpr!==this.dpr){this.width=w;this.height=h;this.dpr=dpr;this.canvas.width=Math.round(w*dpr);this.canvas.height=Math.round(h*dpr);this.back=null}
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  if(this.sizeDirty||this.dpr!==dpr){this.boxSize=this.canvas.getBoundingClientRect();this.sizeDirty=false}
+  const w=Math.round(this.boxSize.width),h=Math.round(this.boxSize.height);
+  if(w!==this.width||h!==this.height||dpr!==this.dpr){this.width=w;this.height=h;this.dpr=dpr;this.canvas.width=Math.round(w*dpr);this.canvas.height=Math.round(h*dpr);this.invalidate()}
   const mobile=w<650;this.cx=w*(mobile?.51:.505);this.cy=h*(mobile?.53:.51)+13;
   this.scale=Math.min(mobile?w/490:w/870,h/(mobile?372:360),1.65)*this.zoom;
   this.c.setTransform(dpr,0,0,dpr,0,0)
@@ -291,24 +303,84 @@ class DoorScene{
   for(let k of [8,44]){let [px,py]=this.p(x+k,y+19,5);this.dot(px,py,3.8*this.scale,4.3*this.scale,'#282c23');this.dot(px,py,1.6*this.scale,1.8*this.scale,'#bec3b4')}
   if(l>1)this.box(x+16,y+4,21,16,9,2,'#959d8a','#686e5d','#7f8774')
  }
+ // Rasterize immobile geometry once at its native pixel density. Thin depth
+ // bands keep the original occlusion order with visitors and rotating blades.
+ buildScenery(){
+  const original=this.c,groups=new Map(),r=this.radius,q=this.dpr;
+  const register=(depth,box,paint)=>{
+   const [x0,y0,x1,y1]=box;
+   if(x1<0||x0>this.width||y1<0||y0>this.height)return;
+   const key=Math.floor(depth*this.scale/(this.scale<.3?4:1));
+   let group=groups.get(key);
+   if(!group){group={left:x0,top:y0,right:x1,bottom:y1,depth,paints:[]};groups.set(key,group)}
+   else{group.left=Math.min(group.left,x0);group.top=Math.min(group.top,y0);group.right=Math.max(group.right,x1);group.bottom=Math.max(group.bottom,y1)}
+   group.paints.push(paint)
+  };
+  const bounds=(x,y,w,d,h)=>{
+   const [left]=this.p(x,y+d),[right]=this.p(x+w,y);
+   const [,top]=this.p(x,y,h),[,bottom]=this.p(x+w,y+d);
+   return [left-3,top-3,right+3,bottom+3]
+  };
+  // Remote stretches of railing repeat just eight panel designs. Rasterize
+  // each in the original painter once as the overview may expose miles of it.
+  const railTiles=new Map();
+  const drawRail=(x,sign,i)=>{
+   if(this.scale>=.4){this.rail(x,sign,i);return}
+   const key=Number(i%3===0)+2*Number(i%4===1)+4*Number(i%5===0);
+   let stamp=railTiles.get(key);
+   if(!stamp){
+    const [l,t,rr,b]=bounds(-2,-9,73,13,29+this.siteTier*5);
+    const left=Math.floor((l-this.cx)*q),top=Math.floor((t-this.cy)*q);
+    const tile=document.createElement('canvas');tile.width=Math.ceil((rr-this.cx)*q)-left;tile.height=Math.ceil((b-this.cy)*q)-top;
+    const painter=Object.create(this);painter.cx=-left/q;painter.cy=-top/q;painter.c=tile.getContext('2d');painter.c.scale(q,q);
+    painter.rail(0,sign,i);stamp={tile,left,top};railTiles.set(key,stamp)
+   }
+   const [px,py]=this.p(x,0),tile=stamp.tile;
+   this.c.drawImage(tile,px+stamp.left/q,py+stamp.top/q,tile.width/q,tile.height/q)
+  };
+  const span=Math.ceil(this.width/(this.scale*62))+4;
+  for(let i=0;i<span;i++)for(const sign of [-1,1]){
+   const x=sign===1?r-1+68*i:-r-67-68*i;
+   register(this.plane(x+34,0),bounds(x-2,-9,73,13,29+this.siteTier*5),()=>drawRail(x,sign,i))
+  }
+  for(const [x,y] of [[212,79],[-242,-102],[306,-131]])register(this.plane(x+23,y+5),bounds(x-2,y-3,51,19,30),()=>this.bench(x,y));
+  for(const [x,y] of [[198,-128],[-258,108]])register(this.plane(x,y),bounds(x-22,y-22,44,44,52),()=>this.planter(x,y));
+  for(const [x,y] of [[-160,56],[-196,56],[-232,56],[156,-52],[194,-52],[232,-52]])register(this.plane(x,y),bounds(x-9,y-10,23,23,21),()=>this.bollard(x,y));
+  const n=16,gap=.88;
+  for(const mid of [0,Math.PI])for(let i=0;i<n;i++){
+   const a=mid-gap+2*gap*i/n,b=a+2*gap/n,m=(a+b)/2;
+   const x=r*Math.cos(m),y=r*Math.sin(m),margin=r*(b-a)*.55+7;
+   register(this.plane(x,y),bounds(x-margin,y-margin,2*margin,2*margin,43),()=>this.guard(a,b,i,n))
+  }
+  const result=[];
+  for(const group of groups.values()){
+   const x=Math.max(0,Math.floor(group.left*q)),y=Math.max(0,Math.floor(group.top*q));
+   const tile=document.createElement('canvas');tile.width=Math.max(1,Math.min(this.canvas.width,Math.ceil(group.right*q))-x);tile.height=Math.max(1,Math.min(this.canvas.height,Math.ceil(group.bottom*q))-y);
+   this.c=tile.getContext('2d');this.c.setTransform(q,0,0,q,-x,-y);
+   for(const paint of group.paints)paint();
+   result.push({depth:group.depth,fn:()=>original.drawImage(tile,x/q,y/q,tile.width/q,tile.height/q)})
+  }
+  this.c=original;this.staticItems=result
+ }
  render(state,zoom){
-  if(this.branch!==state.branch){this.branch=state.branch;this.invalidate()}this.profile=bladeOf(state);this.siteTier=siteIndex(state);const r=116+Math.min(22,state.levels.expand)*2.1;if(this.zoom!==zoom||this.radius!==r){this.zoom=zoom;this.radius=r;this.invalidate()}this.setSize();if(!this.back)this.buildFloor();
+  if(this.branch!==state.branch){this.branch=state.branch;this.invalidate()}this.profile=bladeOf(state);const tier=siteIndex(state);if(tier!==this.siteTier){this.siteTier=tier;this.staticItems=null}const r=116+Math.min(22,state.levels.expand)*2.1;if(this.zoom!==zoom||this.radius!==r){this.zoom=zoom;this.radius=r;this.invalidate()}this.setSize();if(!this.back)this.buildFloor();
   const c=this.c;c.drawImage(this.back,0,0,this.width,this.height);
   BranchArt.motion(this,this.branch,this.time);
-  let items=[];const add=(depth,fn)=>items.push({depth,fn});
-  const span=Math.ceil(this.width/this.scale/100)+4;
-  for(let i=0;i<span;i++)for(let sign of [-1,1]){let x=sign===1?r-1+68*i:-r-67-68*i;add(this.plane(x+34,0),()=>this.rail(x,sign,i))}
-  for(let [x,y] of [[212,79],[-242,-102],[306,-131]])add(this.plane(x+23,y+5),()=>this.bench(x,y));
-  for(let [x,y] of [[198,-128],[-258,108]])add(this.plane(x,y),()=>this.planter(x,y));
-  for(let [x,y] of [[-160,56],[-196,56],[-232,56],[156,-52],[194,-52],[232,-52]])add(this.plane(x,y),()=>this.bollard(x,y));
+  if(!this.staticItems)this.buildScenery();
+  const items=this.staticItems.slice();const add=(depth,fn,texture=false)=>items.push({depth,fn,texture});
+  this.crowd.collect(add);
   for(let car of this.cars)add(this.plane(-150,185),()=>this.vehicle(car));
   for(let a of this.people){this.shadow(a.x+4,a.y+4,9.8,3.9,.27,.42);add(this.plane(a.x,a.y),()=>{if(a.type!=='giant')this.person(a);EventArt.entourage(this,a);if(a.type==='courier'&&a.mode==='queue')EventArt.courierBadge(this,a,Math.max(0,(a.deadline||0)-this.time))})}
-  // Split the housing into short arcs so visitors and blades occlude it in depth order.
-  const n=16,gap=.88;
-  for(let mid of [0,Math.PI])for(let i=0;i<n;i++){let a=mid-gap+2*gap*i/n,b=a+2*gap/n,m=(a+b)/2;add(this.plane(r*Math.cos(m),r*Math.sin(m)),()=>this.guard(a,b,i,n))}
   const blades=this.profile.count;
   for(let j=0;j<blades;j++){let a=this.angle+j*Math.PI*2/blades;add(this.plane(r*.59*Math.cos(a+.08),r*.59*Math.sin(a+.08)),()=>this.blade(a,state.levels.blade))}
-  add(0,()=>this.hub());items.sort((a,b)=>a.depth-b.depth);for(let it of items)it.fn();
+  add(0,()=>this.hub());items.sort((a,b)=>a.depth-b.depth);
+  let rowTransform=false;
+  for(const it of items){
+   if(rowTransform&&!it.texture)c.setTransform(this.dpr,0,0,this.dpr,0,0);
+   it.fn();rowTransform=it.texture
+  }
+  if(rowTransform)c.setTransform(this.dpr,0,0,this.dpr,0,0);
+
   // A small flywheel cap sits above every blade.
   const [hx,hy]=this.p(0,0,47.4);this.dot(hx,hy,5.8*this.scale,3.8*this.scale,'#e9ece1','#42483b',.65*this.scale);
   const f=this.effects;

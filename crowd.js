@@ -95,16 +95,22 @@ class StreetCrowd{
   this.departures=0;this.gate=[];this.serial=0;this.waves=[];this.visible=0;this.bands=0;
  }
  setPopulation(s,waiting,dt){
-  // Pedestrians already in the neighbourhood and waiting customers share
-  // the pavement. Only the game's existing admission code earns money.
-  const residents=550+Math.min(this.limit,180*(waveSize(s)-1)+12*s.levels.expand);
-  const close=this.scene.people.length,visibleClose=close-this.scene.people.filter(p=>p.boarded).length;
+  // Every early arrival has a drawing of its own. Add background groups
+  // only for demand that the individual queue cannot already represent.
+  let visibleClose=0,waitingDrawings=0;
+  for(const p of this.scene.people){
+   if(p.boarded)continue;
+   visibleClose++;
+   if(p.mode!=='out')waitingDrawings++
+  }
   const room=Math.max(0,this.limit-visibleClose-this.gate.length);
-  const f=Math.min(this.limit,Math.max(0,waiting-close*.72)+residents*.64);
-  const b=Math.min(this.limit,Math.max(0,this.departures-close*.28)+residents*.36);
-  const ratio=this.fixed?room/Math.max(1,f+b):Math.min(1,room/Math.max(1,f+b));
+  const residents=Math.min(this.limit,s.admitted*.1,180*(waveSize(s)-1)+12*s.levels.expand);
+  const f=Math.min(this.limit,Math.max(0,waiting-waitingDrawings)+residents*.64);
+  const b=Math.min(this.limit,Math.max(0,this.departures-this.gate.length)+residents*.36);
+  const total=this.fixed?room:Math.min(room,f+b);
+  const share=this.fixed?(f+16)/(f+b+25):f/Math.max(1e-9,f+b);
   const step=this.init?1-Math.exp(-dt*2.7):1;
-  this.front+=(f*ratio-this.front)*step;this.rear+=(b*ratio-this.rear)*step;
+  this.front+=(total*share-this.front)*step;this.rear+=(total*(1-share)-this.rear)*step;
   if(this.front+this.rear>room){const k=room/(this.front+this.rear);this.front*=k;this.rear*=k}
   this.init=true;
  }

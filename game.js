@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 const storageKey='rr-inc-web-1';
 const defaultOptions={sound:false,volume:35,dark:false,zoom:1,maxPeople:95,streetSize:0};
-let state=newRun(),options={...defaultOptions},angle=.27,speed=0,waiting=26,turnPart=0;
+let state=newRun(),options={...defaultOptions},angle=.27,speed=0,waiting=0,turnPart=0;
 let paused=false,tab='equip',audioContext=null,toastTimer=0,toastToken=0,storageOK=true,importing=false;
 const positive=n=>Number.isFinite(n)&&n>=0;
 function freshRuntime(){return {routes:{bus:0,train:0,air:0},balloonClock:0,gulp:0,charge:0,rush:0,opening:0,deliveryClock:0,upgradeAge:0,manual:0,drawPhase:0,adminClock:0,heliClock:0,eventIndex:0}}
@@ -33,6 +33,9 @@ function restore(){
   if(Number.isFinite(data.angle))angle=data.angle;
   if(positive(data.waiting))waiting=data.waiting;
   if(positive(data.turnPart))turnPart=data.turnPart%(Math.PI/2);
+  // Older releases populated a brand-new idle game with 26 waiting customers.
+  if(!data.session&&waiting===26&&!state.runs&&!state.turns&&!state.admitted&&state.seconds<1.35&&
+     !Object.values(state.levels).some(Boolean))waiting=0;
   paused=!!data.paused;savedSession=data.session;
  }catch{storageOK=false}
 }
@@ -42,7 +45,9 @@ function save(){
  $('save-label').textContent=storageOK?'Parties locales':'Sauvegarde indisponible';
 }
 restore();fillIcons();
-const scene=new DoorScene($('world'));scene.maxPeople=options.maxPeople;scene.seed();configureCrowd();
+const scene=new DoorScene($('world'));scene.maxPeople=options.maxPeople;
+if(!savedSession?.world)scene.seed(waiting,state.admitted);
+configureCrowd();
 let rateEvents=[],spawnClock=0,transportClock=0,eventClock=0,restEvent=0,festival=0,repair=0,combo=0,comboClock=0;
 let selectedItem=null,holding=null,pointer=null,keySpin=false,sessionClock=0,saveClock=0,uiClock=0,lastTime=0,frameClock=0;
 const receipts=[];
@@ -176,7 +181,16 @@ function goals(){
  const [active]=nextGoal();showDialog('Objectifs',milestones.map(([n,name])=>record(name,(state.admitted>=n?'✓ ':'')+fmt(n),n===active?'highlight':state.admitted>=n?'done':'')).join(''))
 }
 $('objective').onclick=goals;
-function resetScene(){runtime=freshRuntime();scene.balloons=[];scene.bursts=[];scene.bags=[];scene.effects={};scene.invalidate();speed=0;angle=.27;turnPart=0;waiting=26;combo=0;restEvent=0;festival=0;repair=0;frameClock=0;receipts.length=0;rateEvents=[];spawnClock=transportClock=eventClock=0;scene.people=[];scene.cars=[];scene.labels=[];scene.crowd.reset();scene.seed();configureCrowd();paused=false;controls();updateHUD();refreshShop(true);save()}
+function resetScene(){
+ runtime=freshRuntime();
+ speed=0;angle=.27;turnPart=0;waiting=0;combo=0;comboClock=0;restEvent=0;festival=0;repair=0;
+ sessionClock=0;frameClock=0;spawnClock=0;transportClock=0;eventClock=0;rateEvents=[];receipts.length=0;
+ holding=null;pointer=null;keySpin=false;options.streetSize=0;
+ scene.time=0;scene.serial=0;scene.speed=0;scene.angle=angle;scene.effects={};
+ scene.people=[];scene.cars=[];scene.bags=[];scene.balloons=[];scene.bursts=[];scene.labels=[];
+ scene.crowd.reset();configureCrowd();scene.invalidate();paused=false;
+ controls();updateHUD();refreshShop(true);scene.render(state,options.zoom);save()
+}
 function rebirth(){
  if(state.finished){branchOffice();return}const e=availableEnergy(state);if(!e){showDialog('Réouverture','<p>À partir de 1 000 visiteurs, vous pourrez rouvrir votre entreprise avec un nouveau contrat. L’énergie cumulée finance vos avantages permanents.</p>'+record('Visiteurs accueillis',fmt(state.admitted)+' / 1 000'));return}
  showDialog('Réouverture','<p>Vous recommencez avec une nouvelle porte et votre capital de départ. Vos avantages et votre registre sont conservés. Choisissez le contrat de votre prochaine session.</p>'+record('Énergie acquise','+'+fmt(e))+'<label class="option">Contrat<select id="contract"><option value="economy">Achats à −15 %</option><option value="premium">Recettes à +35 %</option><option value="crowd">Arrivées doublées</option></select></label><button class="primary" id="reopen">Rouvrir l’entreprise</button>');
@@ -331,7 +345,7 @@ function tick(dt){
  if(spawnClock>=interval){
   spawnClock%=interval;const factor=(state.contract==='crowd'?2:1)*(restEvent>0?3:1)*(runtime.rush>0?2:1)*(runtime.opening>0?1.6:1)*(state.branch==='luxury'?.7:state.branch==='airport'?.5:1);
   let n=Math.max(1,Math.floor(waveSize(state)*factor));waiting=Math.min(1e13,waiting+n);
-  if(scene.people.length<Math.min(scene.maxPeople,28+state.levels.promo*5)&&waiting>1){
+  if(scene.people.length<Math.min(scene.maxPeople,28+state.levels.promo*5)&&waiting>0){
    if(state.branch==='airport')scene.invite('traveler',Math.min(3,n),{x:(Math.random()>.5?1:-1)*180,y:200,deadline:scene.time+32});
    else if(state.branch==='seaside')scene.invite('walk',Math.min(3,n),{x:(Math.random()>.5?1:-1)*260,y:218});
    else scene.arrive(Math.min(3,n))

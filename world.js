@@ -22,9 +22,9 @@ class DoorScene{
   this.face([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]],top,stroke,line);
  }
  textOnFloor(str,x,y,size,shade,axis=0){const c=this.c,p=this.p(x,y),s=this.scale;c.save();c.transform(.928*s,.248*s,-.373*s,.617*s,p[0],p[1]);c.rotate(axis);c.fillStyle=shade;c.font='700 '+size+'px BC,Arial,sans-serif';c.letterSpacing='1.2px';c.fillText(str,0,0);c.restore()}
- seed(){
-  for(let i=0;i<23;i++){let a=this.addPerson(-105+Math.random()*240,135+Math.random()*260);if(a){a.x=a.tx+(Math.random()-.5)*50;a.y=a.ty+Math.random()*45}}
-  for(let i=0;i<9;i++){let a=this.addPerson(30+Math.random()*135,-135-Math.random()*230);if(a){a.mode='out';a.tx=a.x+110;a.ty=a.y-300;this.crowd.board(a,true)}}
+ seed(waiting,admitted){
+  for(let i=0;i<Math.min(23,waiting);i++){let a=this.addPerson(-105+Math.random()*240,135+Math.random()*260);if(a){a.x=a.tx+(Math.random()-.5)*50;a.y=a.ty+Math.random()*45}}
+  for(let i=0;i<Math.min(9,admitted);i++){let a=this.addPerson(30+Math.random()*135,-135-Math.random()*230);if(a){a.mode='out';a.tx=a.x+110;a.ty=a.y-300;this.crowd.board(a,true)}}
  }
  addPerson(x,y,type='walk'){
   if(this.people.length>=this.maxPeople)return;

@@ -29,8 +29,9 @@ Camera:
   m_ClearFlags: 2
   m_BackGroundColor: {r: 1, g: 1, b: 1, a: 1}
   m_NormalizedViewPortRect: {serializedVersion: 2, x: 0, y: 0, width: 1, height: 1}
-  near clip plane: 0.1
-  far clip plane: 3000
+  near clip plane: 0.2
+  far clip plane: 40
+  m_AllowMSAA: 1
   field of view: 60
   orthographic: 1
   orthographic size: 4.12
@@ -4937,6 +4938,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: ''
   rules: {fileID: 11400000, guid: 8b2240e7562e909cb40305972f4010a4, type: 2}
   gallery: {fileID: 1012}
+  flywheelParts:
+  - {fileID: 8004}
+  - {fileID: 8005}
+  - {fileID: 8006}
   barrierRuns:
   - {fileID: 1291}
   - {fileID: 1313}
@@ -4976,6 +4981,21 @@ Transform:
 --- !u!4 &8003 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1004, guid: 8ac6bcf8e92aeaa88e70009f8196d344, type: 3}
+  m_PrefabInstance: {fileID: 8001}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &8004 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1079, guid: 8ac6bcf8e92aeaa88e70009f8196d344, type: 3}
+  m_PrefabInstance: {fileID: 8001}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &8005 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1083, guid: 8ac6bcf8e92aeaa88e70009f8196d344, type: 3}
+  m_PrefabInstance: {fileID: 8001}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &8006 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1087, guid: 8ac6bcf8e92aeaa88e70009f8196d344, type: 3}
   m_PrefabInstance: {fileID: 8001}
   m_PrefabAsset: {fileID: 0}
 --- !u!1660057539 &9223372036854775807

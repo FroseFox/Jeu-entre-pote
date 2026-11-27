@@ -17,6 +17,7 @@ Shader "RoundAndRound/Encre sur porcelaine"
             #pragma multi_compile_fwdbase
             #include "UnityCG.cginc"
             #include "AutoLight.cginc"
+            #include "Papier.cginc"
 
             fixed4 _Color;
             half _Shade;
@@ -38,7 +39,7 @@ Shader "RoundAndRound/Encre sur porcelaine"
             {
                 half facing = saturate((dot(normalize(p.normal), normalize(_WorldSpaceLightPos0.xyz)) + .35h) / 1.15h);
                 half light = lerp(_Shade, 1, facing) * lerp(.84h, 1, SHADOW_ATTENUATION(p));
-                return fixed4(_Color.rgb * light, 1);
+                return fixed4(PaperColor(_Color.rgb * light), 1);
             }
             ENDCG
         }

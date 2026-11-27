@@ -8,16 +8,74 @@ public sealed partial class RoundGame
     int slot;
     string saveName = "Ma partie";
     static readonly CultureInfo French = CultureInfo.GetCultureInfo("fr-FR");
-    Texture2D symbols;
+    Texture2D symbols, counterBackdrop;
     GUIStyle type, dialogButton, dialogLabel, dialogField;
     Texture2D buttonPaper, buttonHover;
     static readonly Color Ink = new Color(.055f, .055f, .055f);
     static readonly Color Grey = new Color(.38f, .38f, .38f);
-    static readonly Color Pale = new Color(.88f, .88f, .88f);
+    bool darkPaper;
+    float paperWhite=1;
+    int lastBought=-1;
+    double purchaseAt;
+    readonly int[] dockIds=new int[9];
+    int DockCount {get;set;}
+    void BuildDock()
+    {
+        DockCount=0;
+        int early=L(0)+L(1);
+        for(int i=0;i<dockIds.Length;i++) {
+            bool unlocked=i<2 || L(i)>0;
+            switch(i) {
+                case 2: unlocked|=early>=2 || s.admitted>=20;break;
+                case 3: unlocked|=early>=3 || s.admitted>=35;break;
+                case 4: unlocked|=early>=4 || s.admitted>=50;break;
+                case 5: unlocked|=L(4)>0 || s.admitted>=80;break;
+                case 6: unlocked|=s.admitted>=100;break;
+                case 7: unlocked|=early>=1 || s.admitted>=12;break;
+                case 8: unlocked|=s.admitted>=500;break;
+            }
+            if(unlocked)dockIds[DockCount++]=i;
+        }
+    }
+    Color Tone(Color value)
+    {
+        float light=(darkPaper?1-value.r:value.r)*paperWhite;
+        return new Color(light,light,light,value.a);
+    }
+    void ReadAppearance()
+    {
+        darkPaper=PlayerPrefs.GetInt("RoundAndRound.Dark",0)!=0;
+        paperWhite=Mathf.Clamp(PlayerPrefs.GetFloat("RoundAndRound.Paper",1),.55f,1);
+        ApplyAppearance();
+    }
+    void ApplyAppearance()
+    {
+        Shader.SetGlobalFloat("_RRDark",darkPaper?1:0);
+        Shader.SetGlobalFloat("_RRPaperDim",1-paperWhite);
+        view.backgroundColor=Tone(Color.white);
+        if(dialogButton!=null) StylePaper();
+    }
+    void StylePaper()
+    {
+        dialogLabel.normal.textColor=Tone(Ink);
+        foreach(var style in new[]{dialogButton,dialogField})
+        foreach(var state in new[]{style.normal,style.focused,style.hover,style.active}) {
+            state.textColor=Tone(Ink);
+            state.background=state==style.hover || state==style.active ? buttonHover : buttonPaper;
+        }
+        PaintButton(buttonPaper,.97f);
+        PaintButton(buttonHover,.88f);
+    }
     static string Num(double n) => n >= 1e9 ? (n/1e9).ToString("0.##",French)+" Md" : n >= 1e6 ? (n/1e6).ToString("0.##",French)+" M" : Math.Floor(n).ToString("N0",French);
     static string PriceLabel(double n) => n >= 10000 && n < 1e6 ? (n/1000).ToString("0.#", French)+" k" : Num(n);
-    float UiScale => Mathf.Max(.15f, Mathf.Min(Screen.height / 650f, Screen.width / 515f));
-    int DockCount => s.admitted >= 500 || L(6)+L(7)+L(8)>0 ? 9 : s.admitted >= 100 ? 8 : 6;
+    Rect UiFrame {
+        get {
+            var frame=Screen.safeArea;
+            return frame.width>0 && frame.height>0 ? frame : new Rect(0,0,Screen.width,Screen.height);
+        }
+    }
+    float UiScale => Mathf.Max(.15f, Mathf.Min(UiFrame.height/650f,UiFrame.width/515f));
+    Vector2 CanvasPoint(Vector3 screen) => new Vector2(screen.x-UiFrame.xMin,UiFrame.yMax-screen.y)/UiScale;
     bool ShowReopen => s.admitted >= 1000;
     void Open(string target) { panel=target; scroll=Vector2.zero; drag=false; }
 
@@ -28,71 +86,83 @@ public sealed partial class RoundGame
     }
     bool StreetInput(Vector3 mouse)
     {
-        float scale = UiScale, w = Screen.width/scale, h = Screen.height/scale;
-        var point = new Vector2(mouse.x/scale, h-mouse.y/scale);
+        float w=UiFrame.width/UiScale,h=UiFrame.height/UiScale;
+        var point=CanvasPoint(mouse);
         return !Dock(w,h).Contains(point) && !new Rect(8,8,54,54).Contains(point);
     }
     void PrepareDrawing()
     {
         if (type != null) return;
+        counterBackdrop = new Texture2D(40,32,TextureFormat.RGBA32,false) {hideFlags=HideFlags.HideAndDontSave,wrapMode=TextureWrapMode.Clamp};
+        for(int y=0;y<32;y++)for(int x=0;x<40;x++) {
+            float opacity=Mathf.SmoothStep(0,1,x/15f)*Mathf.SmoothStep(0,1,y/12f);
+            counterBackdrop.SetPixel(x,y,new Color(1,1,1,.93f*opacity));
+        }
+        counterBackdrop.Apply();
         symbols = Resources.Load<Texture2D>("Symboles");
         type = new GUIStyle(GUI.skin.label) { padding = new RectOffset(), margin = new RectOffset(), clipping = TextClipping.Clip };
         dialogLabel = new GUIStyle(GUI.skin.label) {fontSize=16, wordWrap=true, padding=new RectOffset(5,5,5,5)};
         dialogLabel.normal.textColor = Ink;
-        buttonPaper = ButtonTexture(.97f);
-        buttonHover = ButtonTexture(.88f);
+        buttonPaper = ButtonTexture();
+        buttonHover = ButtonTexture();
         dialogButton = new GUIStyle(GUI.skin.button) {
             fontSize=15, padding=new RectOffset(11,11,7,7), margin=new RectOffset(3,3,3,3),
             border=new RectOffset(7,7,7,7), wordWrap=true
         };
-        foreach (var state in new[]{dialogButton.normal,dialogButton.focused,dialogButton.hover,dialogButton.active}) {
-            state.textColor=Ink;
-            state.background=state==dialogButton.hover || state==dialogButton.active ? buttonHover : buttonPaper;
-        }
         dialogField = new GUIStyle(dialogButton) {alignment=TextAnchor.MiddleLeft, fontStyle=FontStyle.Normal};
+        StylePaper();
     }
-    Texture2D ButtonTexture(float fill)
+    Texture2D ButtonTexture()
+    {
+        return new Texture2D(16,16,TextureFormat.RGBA32,false) {hideFlags=HideFlags.HideAndDontSave,wrapMode=TextureWrapMode.Clamp};
+    }
+    void PaintButton(Texture2D tex,float fill)
     {
         const int side = 16;
-        var tex = new Texture2D(side,side,TextureFormat.RGBA32,false) {hideFlags=HideFlags.HideAndDontSave, wrapMode=TextureWrapMode.Clamp};
         for (int y=0;y<side;y++) for (int x=0;x<side;x++) {
             float dx=Mathf.Max(0,Mathf.Abs(x-7.5f)-3.5f), dy=Mathf.Max(0,Mathf.Abs(y-7.5f)-3.5f);
             float d=Mathf.Sqrt(dx*dx+dy*dy);
             float c=Mathf.Lerp(.30f,fill,Mathf.Clamp01(4-d));
-            tex.SetPixel(x,y,new Color(c,c,c,Mathf.Clamp01(5-d)));
+            tex.SetPixel(x,y,Tone(new Color(c,c,c,Mathf.Clamp01(5-d))));
         }
         tex.Apply();
-        return tex;
     }
     void OnDestroy()
     {
+        Shader.SetGlobalFloat("_RRDark",0);
+        Shader.SetGlobalFloat("_RRPaperDim",0);
+        if (counterBackdrop) Destroy(counterBackdrop);
         if (buttonHover) Destroy(buttonHover);
         if (buttonPaper) Destroy(buttonPaper);
         if (tickSound) Destroy(tickSound);
     }
-    static void Fill(Rect r, Color color, float radius)
+    void Fill(Rect r, Color color, float radius)
     {
-        GUI.DrawTexture(r,Texture2D.whiteTexture,ScaleMode.StretchToFill,true,0,color,0,radius);
+        GUI.DrawTexture(r,Texture2D.whiteTexture,ScaleMode.StretchToFill,true,0,Tone(color),0,radius);
     }
-    static void Plate(Rect r, float radius, Color fill, float stroke=1.5f)
+    void Plate(Rect r, float radius, Color fill, float stroke=1.5f)
     {
         Fill(r,Ink,radius);
         Fill(new Rect(r.x+stroke,r.y+stroke,r.width-stroke*2,r.height-stroke*2),fill,Mathf.Max(0,radius-stroke));
     }
     void Text(Rect r,string value,int size,Color color,TextAnchor anchor=TextAnchor.MiddleCenter,bool bold=false)
     {
-        type.fontSize=size;type.alignment=anchor;type.fontStyle=bold?FontStyle.Bold:FontStyle.Normal;type.normal.textColor=color;
+        type.fontSize=size;type.alignment=anchor;type.fontStyle=bold?FontStyle.Bold:FontStyle.Normal;type.normal.textColor=Tone(color);
         GUI.Label(r,value,type);
     }
     void Symbol(Rect r,int id,Color color)
     {
         if (!symbols) return;
-        var previous=GUI.color; GUI.color=color;
+        var previous=GUI.color; GUI.color=previous*Tone(color);
         GUI.DrawTextureWithTexCoords(r,symbols,new Rect((id%4)*.25f,(3-id/4)*.25f,.25f,.25f));
         GUI.color=previous;
     }
     void DrawCounters(float w)
     {
+        var previous=GUI.color;
+        GUI.color=Tone(Color.white);
+        GUI.DrawTexture(new Rect(w-323,0,323,s.rush>0 || s.festival>0 || s.repair>0?175:153),counterBackdrop);
+        GUI.color=previous;
         float right = w-24;
         string cash=Num(s.cash);
         type.fontSize=30;type.fontStyle=FontStyle.Bold;
@@ -118,7 +188,8 @@ public sealed partial class RoundGame
         for(int k=0;k<slots;k++)
         {
             bool reopen=ShowReopen && k==4;
-            int i=ShowReopen && k>4?k-1:k;
+            int index=ShowReopen && k>4?k-1:k;
+            int i=reopen?0:dockIds[index];
             float center=dock.x+8+(k+.5f)*step;
             Rect hit=new Rect(center-step*.5f,dock.y+2,step,dock.height-4);
             bool hover=hit.Contains(Event.current.mousePosition);
@@ -131,12 +202,23 @@ public sealed partial class RoundGame
             if(!reopen) {
                 var key=new Rect(circle.x-2,circle.yMax-11,14,14);
                 Plate(key,7,Color.white,1);
-                Text(key,(i+1).ToString(),9,Ink);
+                Text(key,(index+1).ToString(),9,Ink);
             }
             string price=reopen ? "+"+Num(Math.Sqrt(s.admitted/250)) : L(i)>=LevelLimit(i)?"MAX":PriceLabel(Price(i));
             var priceRect=new Rect(center-step/2,dock.y+61,step,18);
             Text(priceRect,(reopen?"": "● ")+price,12,affordable?Ink:Grey,TextAnchor.MiddleCenter,affordable);
-            if (hover) hint=reopen?"Réouverture de l’agence":rules.upgrades[i].title+"   ·   niveau "+L(i);
+            if (!reopen && i==lastBought && s.seconds-purchaseAt<.72) {
+                float t=(float)((s.seconds-purchaseAt)/.72);
+                var centerPoint=circle.center;
+                for(int j=0;j<8;j++) {
+                    float a=(j+.25f)*Mathf.PI/4;
+                    float spread=d*(.55f+t*.38f),spark=4*(1-t)+1;
+                    var dot=centerPoint+new Vector2(Mathf.Cos(a),Mathf.Sin(a))*spread;
+                    Fill(new Rect(dot.x,dot.y,spark,spark),Ink,spark/2);
+                }
+                Badge(new Vector2(center, dock.y-20-t*16),"Niv. "+L(i),false);
+            }
+            if (hover && (i!=lastBought || s.seconds-purchaseAt>=.72)) hint=reopen?"Réouverture de l’agence":rules.upgrades[i].title+"   ·   niveau "+L(i);
             if (GUI.Button(hit,GUIContent.none,GUIStyle.none)) {
                 if (reopen) Open("Agence");
                 else if (affordable) Buy(i);
@@ -150,7 +232,8 @@ public sealed partial class RoundGame
     {
         type.fontSize=dark?19:14;type.fontStyle=FontStyle.Bold;
         float width=type.CalcSize(new GUIContent(message)).x+21;
-        Rect r=new Rect(center.x-width/2,center.y-15,width,30);
+        width=Mathf.Min(width,UiFrame.width/UiScale-8);
+        Rect r=new Rect(Mathf.Clamp(center.x-width/2,4,UiFrame.width/UiScale-width-4),Mathf.Clamp(center.y-15,4,UiFrame.height/UiScale-34),width,30);
         Plate(r,8,dark?Ink:Color.white);
         Text(r,message,dark?19:14,dark?Color.white:Ink,TextAnchor.MiddleCenter,true);
     }
@@ -179,7 +262,7 @@ public sealed partial class RoundGame
             if(t<0 || t>=1) {pulses[i].active=false;continue;}
             var screen=view.WorldToScreenPoint(pulse.position);
             if(screen.z<=0) continue;
-            var center=new Vector2(screen.x/UiScale,h-screen.y/UiScale);
+            var center=CanvasPoint(screen);
             GUI.color=new Color(1,1,1,Mathf.Clamp01((1-t)*3));
             if(pulse.income!=null) {
                 var drift=new Vector2(Mathf.Sin(i*2.4f)*22*t,-18-40*t);
@@ -200,7 +283,7 @@ public sealed partial class RoundGame
     {
         DrawPulses(h);
         var anchor=view.WorldToScreenPoint(door.position+Vector3.up*.7f);
-        var point=new Vector2(anchor.x/UiScale,h-anchor.y/UiScale);
+        var point=CanvasPoint(anchor);
         if (s.comboClock>0 && s.combo>0) Badge(new Vector2(point.x,Mathf.Max(63,point.y-113)), "Éjection × "+Num(s.combo),true);
         if (noticeClock>0 && !notice.StartsWith("Éjection",StringComparison.Ordinal))
             Badge(new Vector2(point.x,Mathf.Max(98,point.y-62-(2.1f-noticeClock)*12)),notice,false);
@@ -219,8 +302,9 @@ public sealed partial class RoundGame
     {
         PrepareDrawing();
         var before=GUI.matrix;
-        float scale=UiScale, w=Screen.width/scale, h=Screen.height/scale;
-        GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
+        var frame=UiFrame;
+        float scale=UiScale,w=frame.width/scale,h=frame.height/scale;
+        GUI.matrix=Matrix4x4.TRS(new Vector3(frame.xMin,Screen.height-frame.yMax,0),Quaternion.identity,new Vector3(scale,scale,1));
         DrawCounters(w);
         var pause=new Rect(20,19,34,34);
         Plate(pause,17,Color.white);
@@ -256,7 +340,7 @@ public sealed partial class RoundGame
             if(Button("Options")) Open("Options");
             GUILayout.BeginHorizontal();
             if(Button("−"))Zoom(.8f);
-            if(Button("Vue  "+Mathf.RoundToInt(s.zoom*100)+" %")) {s.zoom=1;FrameCamera();}
+            if(Button("Vue  "+Mathf.RoundToInt(s.zoom*100)+" %")) {s.zoom=1;s.manualZoom=false;FrameCamera();}
             if(Button("+"))Zoom(1.25f);
             GUILayout.EndHorizontal();
             Label("Cliquez sur la place ou maintenez Espace pour faire tourner la porte.");
@@ -291,6 +375,18 @@ public sealed partial class RoundGame
             if(Button("Rouvrir l’agence"))ResetGame(true);break;
         case "Options":
             if(Button(s.muted?"Activer le son":"Couper le son")){s.muted=!s.muted;Sound(1);}
+            if(Button(darkPaper?"Thème sombre":"Thème clair")) {
+                darkPaper=!darkPaper;
+                PlayerPrefs.SetInt("RoundAndRound.Dark",darkPaper?1:0);
+                ApplyAppearance();
+            }
+            Label("Luminosité du blanc  "+Mathf.RoundToInt(paperWhite*100)+" %");
+            float brightness=GUILayout.HorizontalSlider(paperWhite,.55f,1);
+            if(Event.current.type!=EventType.Layout && Mathf.Abs(brightness-paperWhite)>.001f) {
+                paperWhite=brightness;
+                PlayerPrefs.SetFloat("RoundAndRound.Paper",paperWhite);
+                ApplyAppearance();
+            }
             Label("Foule dans la rue");
             foreach(int n in new[]{0,2000,50000,250000,1000000,2000000})if(Button((s.crowdSize==n?"✓  ":"")+(n==0?"Selon l’affluence":Num(n)+" passants"))){s.crowdSize=n;RefreshScene();Save(AutoKey);}
             if(Button("Nouvelle partie"))Open("Recommencer");break;

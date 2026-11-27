@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 [RequireComponent(typeof(MeshRenderer),typeof(MeshFilter))]
-public sealed class StreetCrowd : MonoBehaviour
+public sealed partial class StreetCrowd : MonoBehaviour
 {
     [Min(.1f)] public float spacing=.28f, rowSpacing=.25f;
     public int displayed { get; private set; }
@@ -10,30 +10,34 @@ public sealed class StreetCrowd : MonoBehaviour
     readonly List<Vector2> uv=new List<Vector2>();
     readonly List<int> triangles=new List<int>();
     Mesh mesh;
-    int previous=-1;
+    int previousFront=-1, previousBack=-1;
     float lastRadius;
     void EnsureMesh(){
         if(mesh)return;
         mesh=new Mesh {name="Rangées de passants"};
         mesh.MarkDynamic(); GetComponent<MeshFilter>().sharedMesh=mesh;
     }
-    public void SetCount(int count,float radius){
+    public void SetCount(int front,int back,float radius){
         EnsureMesh();
-        if(count==previous && Mathf.Approximately(radius,lastRadius))return;
-        previous=count;lastRadius=radius;displayed=count;
+        if(front==previousFront && back==previousBack && Mathf.Approximately(radius,lastRadius))return;
+        previousFront=front;previousBack=back;lastRadius=radius;displayed=front+back;
         vertices.Clear();uv.Clear();triangles.Clear();
-        int front=(int)(count*.68);
-        AddRows(front,-1,radius);AddRows(count-front,1,radius);
+        AddRows(front,-1,radius);AddRows(back,1,radius);
         mesh.Clear();mesh.SetVertices(vertices);mesh.SetUVs(0,uv);mesh.SetTriangles(triangles,0);
     }
     void AddRows(int count,int side,float radius){
         for(int row=0;count>0;row++){
-            int seats=Mathf.Min(count,8+row*2);
-            float half=seats*spacing*.5f,z=side*(radius+.68f+rowSpacing*row);
-            float center=Mathf.Sin(row*.034f)*Mathf.Min(row*.015f,5);
+            int fullRow=8+row*2;
+            int seats=Mathf.Min(count,fullRow);
+            float depth=rowSpacing*row;
+            float z=side*(radius+.66f+depth);
+            float bend=side*Mathf.Sin(depth*.46f)*Mathf.Min(depth*.48f,1.45f);
+            float stagger=(row%2)*spacing*.53f;
+            float left=bend+stagger-fullRow*spacing*.5f;
+            float right=left+seats*spacing;
             int n=vertices.Count;
-            vertices.Add(new Vector3(center-half,0,z));vertices.Add(new Vector3(center+half,0,z));
-            vertices.Add(new Vector3(center+half,.70f,z));vertices.Add(new Vector3(center-half,.70f,z));
+            vertices.Add(new Vector3(left,0,z));vertices.Add(new Vector3(right,0,z));
+            vertices.Add(new Vector3(right,.70f,z));vertices.Add(new Vector3(left,.70f,z));
             float y=(row%8)*2,x=(row%7)*.14f;
             uv.Add(new Vector2(x,y));uv.Add(new Vector2(x+seats/16f,y));
             uv.Add(new Vector2(x+seats/16f,y+.999f));uv.Add(new Vector2(x,y+.999f));
@@ -42,5 +46,5 @@ public sealed class StreetCrowd : MonoBehaviour
             count-=seats;
         }
     }
-    void OnDestroy(){if(mesh)Destroy(mesh);}
+    void OnDestroy(){if(mesh)Destroy(mesh);if(pocketMesh)Destroy(pocketMesh);}
 }

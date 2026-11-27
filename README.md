@@ -6,7 +6,7 @@ Adaptation native en C# de la version web du dépôt FroseFox/Jeu-entre-pote, in
 
 ![Aperçu de la porte à quatre pales dans le quartier](Documentation/Quartier.jpg)
 
-Aperçu des modèles Unity au premier niveau d’amélioration des pales. Le rendu a été réalisé dans Blender avec la caméra du projet.
+Aperçu des modèles Unity au premier niveau d’amélioration des pales, rendu dans Blender avec la caméra du projet. L’animation liée ici rejoue les positions calculées par les scripts C# et les commandes de dessin de l’interface dans un rendu hors éditeur. [Voir le passage animé en clair et en sombre](Documentation/Passage.gif)
 
 ## Ouvrir la scène
 
@@ -15,6 +15,10 @@ Aperçu des modèles Unity au premier niveau d’amélioration des pales. Le ren
 3. Ouvrez-le avec **Unity 6 LTS 6000.0.58f2**. Une première scène vierge ouvre automatiquement **Quartier**. Vous pouvez aussi choisir **Round and Round → Ouvrir le quartier**, puis lancer **Play**.
 
 Dans la fenêtre **Game**, cliquez sur la place, maintenez **Espace** ou tracez un cercle autour de la porte. Les boutons ronds en bas achètent les améliorations. Les touches **1 à 9** activent les boutons visibles. La molette contrôle le zoom. Le bouton **Ⅱ** en haut à gauche et la touche **P** ouvrent le menu qui contient l’atelier complet, l’agence, les parties locales et les réglages. Dans la vue **Scene**, utilisez **Round and Round → Cadrer la porte** pour reprendre l’angle de la caméra.
+
+Une partie neuve présente deux achats, Publicité et Engrenages. Les commandes suivantes apparaissent au fil des entrées et des achats. Le volant à rayons apparaît avec l’inertie ou le premier changement de pales. Dans **Pause → Options**, vous pouvez choisir le thème clair ou sombre et régler la luminosité du blanc. Ces préférences sont communes aux parties locales.
+
+Le mouvement des pales droites, la montée de la foule et les éjections ont été comparés à la bande-annonce et aux boucles de jeu de Murbong. Les seuils d’apparition des commandes sont propres à cette adaptation. [Vidéos de jeu sur Steam](https://store.steampowered.com/app/5455960/Round_and_Round_Inc/)
 
 ## Modifier le jeu
 
@@ -27,6 +31,7 @@ Dans la fenêtre **Game**, cliquez sur la place, maintenez **Espace** ou tracez 
 | Quartiers, transports et éclairage | Objets de la scène Quartier |
 | Arrivées, recettes, bonus et événements | Assets/Scripts/RoundGame.cs |
 | Interface et commandes de gestion | Assets/Scripts/RoundGame.Interface.cs |
+| Groupes entraînés dans les pales | Assets/Scripts/StreetCrowd.Pockets.cs |
 | Foule lointaine | Assets/Scripts/StreetCrowd.cs, Assets/Shaders/Street.shader et Assets/Materials/Passants.png |
 
 L’objet **Agence** relie la simulation aux objets de la scène. Le prefab de la porte contient un rotor à dix bras dont quatre sont actifs au départ. Chaque pale utilise un maillage continu. Le composant **Blade Profile** de chaque bras contient les cinq profils de progression. Les garde-corps, les rayons et les cerclages sont des objets distincts du prefab. Le premier agrandissement ou l’achat de l’amélioration Transports ouvre les deux trémies dans la place. Pour voir la foule à grande échelle, sélectionnez une taille dans **Options** puis éloignez la caméra. Les grands groupes utilisent des rangées texturées avec les silhouettes animées tirées de la version web.

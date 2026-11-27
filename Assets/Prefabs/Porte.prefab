@@ -785,7 +785,7 @@ GameObject:
   m_Layer: 0
   m_Name: Jante
   m_TagString: Untagged
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1080
 Transform:
   m_GameObject: {fileID: 1079}
@@ -820,7 +820,7 @@ GameObject:
   m_Layer: 0
   m_Name: Cerclages
   m_TagString: Untagged
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1084
 Transform:
   m_GameObject: {fileID: 1083}
@@ -855,7 +855,7 @@ GameObject:
   m_Layer: 0
   m_Name: Rayons
   m_TagString: Untagged
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1088
 Transform:
   m_GameObject: {fileID: 1087}

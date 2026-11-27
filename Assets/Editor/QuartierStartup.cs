@@ -31,6 +31,11 @@ internal static class QuartierStartup
         }
         SessionState.SetBool(Checked, true);
         if (SceneManager.sceneCount != 1 || scene.isDirty) return;
+        if (scene.path == ScenePath)
+        {
+            FrameDoor();
+            return;
+        }
         bool starter = string.IsNullOrEmpty(scene.path) || scene.path == "Assets/Scenes/SampleScene.unity";
         if (!starter) return;
         foreach (GameObject root in scene.GetRootGameObjects())
@@ -38,7 +43,10 @@ internal static class QuartierStartup
             if (root.GetComponent<Camera>() == null && root.GetComponent<Light>() == null) return;
         }
         if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null)
+        {
             EditorSceneManager.OpenScene(ScenePath);
+            EditorApplication.delayCall += FrameDoor;
+        }
     }
 
     [MenuItem("Round and Round/Ouvrir le quartier")]
@@ -46,6 +54,31 @@ internal static class QuartierStartup
     {
         if (!EditorApplication.isPlayingOrWillChangePlaymode &&
             EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+        {
             EditorSceneManager.OpenScene(ScenePath);
+            EditorApplication.delayCall += FrameDoor;
+        }
+    }
+
+    [MenuItem("Round and Round/Cadrer la porte")]
+    private static void FrameDoor()
+    {
+        var scene = SceneManager.GetActiveScene();
+        var window = SceneView.lastActiveSceneView;
+        if (scene.path != ScenePath || !window) return;
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            if (!root.TryGetComponent<RoundGame>(out var game) || !game.view || !game.door) continue;
+            var camera = game.view;
+            var direction = camera.transform.forward;
+            var offset = Vector3.Dot(game.door.position - camera.transform.position, direction);
+            var focus = camera.transform.position + direction * offset;
+            window.orthographic = true;
+            window.showGrid = false;
+            window.sceneLighting = true;
+            window.LookAtDirect(focus, camera.transform.rotation, camera.orthographicSize);
+            window.Repaint();
+            break;
+        }
     }
 }

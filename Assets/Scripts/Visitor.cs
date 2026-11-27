@@ -2,10 +2,11 @@ using UnityEngine;
 
 public sealed class Visitor : MonoBehaviour
 {
-    public Transform leftLeg, rightLeg, accessory;
+    public Transform leftLeg, rightLeg, leftArm, rightArm, accessory;
     [Min(.2f)] public float walkingSpeed = 2.2f;
     public string role { get; private set; }
     public bool InLine => phase == Phase.Queue;
+    public bool JustLanded { get; private set; }
     public bool Finished => phase == Phase.Done;
     enum Phase { Queue, Riding, Leaving, Flying, Recovering, Done }
     Phase phase;
@@ -39,13 +40,16 @@ public sealed class Visitor : MonoBehaviour
         Arrive(r.position,r.kind,0);origin=r.origin;phase=(Phase)r.phase;age=r.age;travel=r.travel;
         lane=r.lane;seed=r.seed;radius=r.radius;pace=r.pace;fling=r.fling;transform.rotation=r.rotation;
     }
-    public void Step(float dt, float velocity, int place, float gateRadius)
+    public void Step(float dt, float velocity, int place, float gateRadius, bool gallery)
     {
+        JustLanded = false;
         age += dt; pace += dt * walkingSpeed * 4;
         var p = transform.position;
         if (phase == Phase.Queue)
         {
-            var target = new Vector3(lane, 0, -gateRadius - .45f - .38f * place);
+            int row = place / 3;
+            float offset = (place % 3 - 1) * .26f + lane * .22f;
+            var target = new Vector3(offset - .42f * Mathf.Sin(row * .25f), 0, -gateRadius - .19f - .26f * row);
             p = Vector3.MoveTowards(p, target, walkingSpeed * dt);
         }
         else if (phase == Phase.Riding)
@@ -60,7 +64,7 @@ public sealed class Visitor : MonoBehaviour
             float u = Mathf.Clamp01(age);
             p = origin + new Vector3((seed-.5f)*7*u, 8*u*(1-u), 3*u);
             transform.rotation = Quaternion.Euler(0,0,360*u);
-            if (u >= 1) { phase = Phase.Recovering; age = 0; }
+            if (u >= 1) { phase = Phase.Recovering; age = 0; JustLanded = true; }
         }
         else if (phase == Phase.Recovering)
         {
@@ -69,13 +73,27 @@ public sealed class Visitor : MonoBehaviour
         }
         else if (phase == Phase.Leaving)
         {
-            float u = Mathf.Clamp01(age / 1.5f);
-            p = Vector3.Lerp(origin, new Vector3(lane*.45f,0,gateRadius+1.55f),u);
-            p.y = -2 * Mathf.Clamp01((u-.55f)/.45f);
-            if (u >= 1) phase = Phase.Done;
+            if (gallery) {
+                var landing = new Vector3(-3.55f + lane * .22f, 0, 1.93f);
+                var bottom = landing + new Vector3(0, -.82f, -1.48f);
+                float walk = Vector3.Distance(origin, landing) / walkingSpeed;
+                p = age < walk ? Vector3.Lerp(origin, landing, age / walk)
+                               : Vector3.Lerp(landing, bottom, (age - walk) / .93f);
+                if (age >= walk + .93f) phase = Phase.Done;
+            } else {
+                var direction = new Vector3(lane * .7f, 0, 1).normalized;
+                p = origin + direction * walkingSpeed * age;
+                if (age >= 5) phase = Phase.Done;
+            }
         }
-        transform.position=p;
-        float swing=Mathf.Sin(pace+seed*6)*23;
+        Vector3 movement = p - transform.position;
+        movement.y = 0;
+        if (phase != Phase.Flying && phase != Phase.Recovering && movement.sqrMagnitude > .000001f)
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(movement), Mathf.Clamp01(dt * 14));
+        transform.position = p;
+        float swing = Mathf.Sin(pace + seed * 6) * Mathf.Min(1, movement.magnitude / Mathf.Max(.001f, dt)) * 24;
+        if (leftArm) leftArm.localRotation = Quaternion.Euler(-swing, 0, -8);
+        if (rightArm) rightArm.localRotation = Quaternion.Euler(swing, 0, 8);
         if (leftLeg) leftLeg.localRotation=Quaternion.Euler(swing,0,0);
         if (rightLeg) rightLeg.localRotation=Quaternion.Euler(-swing,0,0);
     }

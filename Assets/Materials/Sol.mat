@@ -1,0 +1,15 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_Name: Sol
+  m_Shader: {fileID: 4800000, guid: 9882fad17f8b745993bdc8ba758080eb, type: 3}
+  m_CustomRenderQueue: -1
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Floats:
+    - _Shade: 1.0
+    m_Colors:
+    - _Color: {r: 1.0, g: 1.0, b: 1.0, a: 1}

@@ -5,7 +5,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1002}
-  - component: {fileID: 1023}
+  - component: {fileID: 1051}
   m_Layer: 0
   m_Name: Visiteur
   m_TagString: Untagged
@@ -22,7 +22,10 @@ Transform:
   - {fileID: 1008}
   - {fileID: 1012}
   - {fileID: 1016}
-  - {fileID: 1020}
+  - {fileID: 1026}
+  - {fileID: 1032}
+  - {fileID: 1042}
+  - {fileID: 1048}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1003
@@ -33,7 +36,7 @@ GameObject:
   - component: {fileID: 1005}
   - component: {fileID: 1006}
   m_Layer: 0
-  m_Name: Manteau
+  m_Name: Buste
   m_TagString: Untagged
   m_IsActive: 1
 --- !u!4 &1004
@@ -41,8 +44,8 @@ Transform:
   m_GameObject: {fileID: 1003}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-  m_LocalPosition: {x: 0, y: 0.52, z: 0}
-  m_LocalScale: {x: 0.28, y: 0.35, z: 0.22}
+  m_LocalPosition: {x: 0, y: 0.32, z: 0}
+  m_LocalScale: {x: 0.207, y: 0.143, z: 0.158}
   m_Children: []
   m_Father: {fileID: 1002}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -76,8 +79,8 @@ Transform:
   m_GameObject: {fileID: 1007}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-  m_LocalPosition: {x: 0, y: 0.91, z: 0}
-  m_LocalScale: {x: 0.28, y: 0.3, z: 0.28}
+  m_LocalPosition: {x: 0, y: 0.552, z: 0}
+  m_LocalScale: {x: 0.217, y: 0.212, z: 0.205}
   m_Children: []
   m_Father: {fileID: 1002}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -92,7 +95,7 @@ MeshRenderer:
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_Materials:
-  - {fileID: 2100000, guid: 9bc2c3c060f3cc8c0036d70dd0d3a4a2, type: 2}
+  - {fileID: 2100000, guid: 042a72e3072e7d9e3dbc089d17ce50a3, type: 2}
   m_RenderingLayerMask: 1
   m_LightmapIndex: 65535
 --- !u!1 &1011
@@ -103,7 +106,7 @@ GameObject:
   - component: {fileID: 1013}
   - component: {fileID: 1014}
   m_Layer: 0
-  m_Name: Jambe gauche
+  m_Name: Col
   m_TagString: Untagged
   m_IsActive: 1
 --- !u!4 &1012
@@ -111,15 +114,15 @@ Transform:
   m_GameObject: {fileID: 1011}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-  m_LocalPosition: {x: -0.08, y: 0.2, z: 0}
-  m_LocalScale: {x: 0.09, y: 0.18, z: 0.1}
+  m_LocalPosition: {x: 0, y: 0.457, z: 0}
+  m_LocalScale: {x: 0.139, y: 0.023, z: 0.128}
   m_Children: []
   m_Father: {fileID: 1002}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &1013
 MeshFilter:
   m_GameObject: {fileID: 1011}
-  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+  m_Mesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &1014
 MeshRenderer:
   m_GameObject: {fileID: 1011}
@@ -127,7 +130,7 @@ MeshRenderer:
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_Materials:
-  - {fileID: 2100000, guid: 042a72e3072e7d9e3dbc089d17ce50a3, type: 2}
+  - {fileID: 2100000, guid: 9bc2c3c060f3cc8c0036d70dd0d3a4a2, type: 2}
   m_RenderingLayerMask: 1
   m_LightmapIndex: 65535
 --- !u!1 &1015
@@ -135,10 +138,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1016}
-  - component: {fileID: 1017}
-  - component: {fileID: 1018}
   m_Layer: 0
-  m_Name: Jambe droite
+  m_Name: Hanche gauche
   m_TagString: Untagged
   m_IsActive: 1
 --- !u!4 &1016
@@ -146,18 +147,41 @@ Transform:
   m_GameObject: {fileID: 1015}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-  m_LocalPosition: {x: 0.08, y: 0.2, z: 0}
-  m_LocalScale: {x: 0.09, y: 0.18, z: 0.1}
-  m_Children: []
+  m_LocalPosition: {x: -0.054, y: 0.227, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 1018}
+  - {fileID: 1022}
   m_Father: {fileID: 1002}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &1017
+--- !u!1 &1017
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1018}
+  - component: {fileID: 1019}
+  - component: {fileID: 1020}
+  m_Layer: 0
+  m_Name: Jambe
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1018
+Transform:
+  m_GameObject: {fileID: 1017}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+  m_LocalPosition: {x: 0, y: -0.083, z: 0}
+  m_LocalScale: {x: 0.074, y: 0.093, z: 0.075}
+  m_Children: []
+  m_Father: {fileID: 1016}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1019
 MeshFilter:
-  m_GameObject: {fileID: 1015}
+  m_GameObject: {fileID: 1017}
   m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
---- !u!23 &1018
+--- !u!23 &1020
 MeshRenderer:
-  m_GameObject: {fileID: 1015}
+  m_GameObject: {fileID: 1017}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -165,34 +189,270 @@ MeshRenderer:
   - {fileID: 2100000, guid: 042a72e3072e7d9e3dbc089d17ce50a3, type: 2}
   m_RenderingLayerMask: 1
   m_LightmapIndex: 65535
---- !u!1 &1019
+--- !u!1 &1021
 GameObject:
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1020}
-  - component: {fileID: 1021}
   - component: {fileID: 1022}
+  - component: {fileID: 1023}
+  - component: {fileID: 1024}
+  m_Layer: 0
+  m_Name: Chaussure
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1022
+Transform:
+  m_GameObject: {fileID: 1021}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+  m_LocalPosition: {x: 0, y: -0.183, z: 0.025}
+  m_LocalScale: {x: 0.087, y: 0.071, z: 0.144}
+  m_Children: []
+  m_Father: {fileID: 1016}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1023
+MeshFilter:
+  m_GameObject: {fileID: 1021}
+  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &1024
+MeshRenderer:
+  m_GameObject: {fileID: 1021}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_Materials:
+  - {fileID: 2100000, guid: 042a72e3072e7d9e3dbc089d17ce50a3, type: 2}
+  m_RenderingLayerMask: 1
+  m_LightmapIndex: 65535
+--- !u!1 &1025
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1026}
+  m_Layer: 0
+  m_Name: Épaule gauche
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1026
+Transform:
+  m_GameObject: {fileID: 1025}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: -0.0697564737441253, w: 0.9975640502598242}
+  m_LocalPosition: {x: -0.099, y: 0.398, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 1028}
+  m_Father: {fileID: 1002}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -8}
+--- !u!1 &1027
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1028}
+  - component: {fileID: 1029}
+  - component: {fileID: 1030}
+  m_Layer: 0
+  m_Name: Bras
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1028
+Transform:
+  m_GameObject: {fileID: 1027}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+  m_LocalPosition: {x: -0.014, y: -0.089, z: 0}
+  m_LocalScale: {x: 0.069, y: 0.096, z: 0.071}
+  m_Children: []
+  m_Father: {fileID: 1026}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1029
+MeshFilter:
+  m_GameObject: {fileID: 1027}
+  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &1030
+MeshRenderer:
+  m_GameObject: {fileID: 1027}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_Materials:
+  - {fileID: 2100000, guid: 042a72e3072e7d9e3dbc089d17ce50a3, type: 2}
+  m_RenderingLayerMask: 1
+  m_LightmapIndex: 65535
+--- !u!1 &1031
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1032}
+  m_Layer: 0
+  m_Name: Hanche droit
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1032
+Transform:
+  m_GameObject: {fileID: 1031}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+  m_LocalPosition: {x: 0.054, y: 0.227, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 1034}
+  - {fileID: 1038}
+  m_Father: {fileID: 1002}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1033
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1034}
+  - component: {fileID: 1035}
+  - component: {fileID: 1036}
+  m_Layer: 0
+  m_Name: Jambe
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1034
+Transform:
+  m_GameObject: {fileID: 1033}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+  m_LocalPosition: {x: 0, y: -0.083, z: 0}
+  m_LocalScale: {x: 0.074, y: 0.093, z: 0.075}
+  m_Children: []
+  m_Father: {fileID: 1032}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1035
+MeshFilter:
+  m_GameObject: {fileID: 1033}
+  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &1036
+MeshRenderer:
+  m_GameObject: {fileID: 1033}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_Materials:
+  - {fileID: 2100000, guid: 042a72e3072e7d9e3dbc089d17ce50a3, type: 2}
+  m_RenderingLayerMask: 1
+  m_LightmapIndex: 65535
+--- !u!1 &1037
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1038}
+  - component: {fileID: 1039}
+  - component: {fileID: 1040}
+  m_Layer: 0
+  m_Name: Chaussure
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1038
+Transform:
+  m_GameObject: {fileID: 1037}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+  m_LocalPosition: {x: 0, y: -0.183, z: 0.025}
+  m_LocalScale: {x: 0.087, y: 0.071, z: 0.144}
+  m_Children: []
+  m_Father: {fileID: 1032}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1039
+MeshFilter:
+  m_GameObject: {fileID: 1037}
+  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &1040
+MeshRenderer:
+  m_GameObject: {fileID: 1037}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_Materials:
+  - {fileID: 2100000, guid: 042a72e3072e7d9e3dbc089d17ce50a3, type: 2}
+  m_RenderingLayerMask: 1
+  m_LightmapIndex: 65535
+--- !u!1 &1041
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1042}
+  m_Layer: 0
+  m_Name: Épaule droit
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1042
+Transform:
+  m_GameObject: {fileID: 1041}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0697564737441253, w: 0.9975640502598242}
+  m_LocalPosition: {x: 0.099, y: 0.398, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 1044}
+  m_Father: {fileID: 1002}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 8}
+--- !u!1 &1043
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1044}
+  - component: {fileID: 1045}
+  - component: {fileID: 1046}
+  m_Layer: 0
+  m_Name: Bras
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &1044
+Transform:
+  m_GameObject: {fileID: 1043}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+  m_LocalPosition: {x: 0.014, y: -0.089, z: 0}
+  m_LocalScale: {x: 0.069, y: 0.096, z: 0.071}
+  m_Children: []
+  m_Father: {fileID: 1042}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &1045
+MeshFilter:
+  m_GameObject: {fileID: 1043}
+  m_Mesh: {fileID: 10208, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &1046
+MeshRenderer:
+  m_GameObject: {fileID: 1043}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_Materials:
+  - {fileID: 2100000, guid: 042a72e3072e7d9e3dbc089d17ce50a3, type: 2}
+  m_RenderingLayerMask: 1
+  m_LightmapIndex: 65535
+--- !u!1 &1047
+GameObject:
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1048}
+  - component: {fileID: 1049}
+  - component: {fileID: 1050}
   m_Layer: 0
   m_Name: Colis
   m_TagString: Untagged
   m_IsActive: 1
---- !u!4 &1020
+--- !u!4 &1048
 Transform:
-  m_GameObject: {fileID: 1019}
+  m_GameObject: {fileID: 1047}
   serializedVersion: 2
   m_LocalRotation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
-  m_LocalPosition: {x: 0.16, y: 0.52, z: 0}
-  m_LocalScale: {x: 0.2, y: 0.2, z: 0.19}
+  m_LocalPosition: {x: 0.14, y: 0.25, z: 0.06}
+  m_LocalScale: {x: 0.153, y: 0.141, z: 0.139}
   m_Children: []
   m_Father: {fileID: 1002}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &1021
+--- !u!33 &1049
 MeshFilter:
-  m_GameObject: {fileID: 1019}
+  m_GameObject: {fileID: 1047}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!23 &1022
+--- !u!23 &1050
 MeshRenderer:
-  m_GameObject: {fileID: 1019}
+  m_GameObject: {fileID: 1047}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -200,7 +460,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 9bc2c3c060f3cc8c0036d70dd0d3a4a2, type: 2}
   m_RenderingLayerMask: 1
   m_LightmapIndex: 65535
---- !u!114 &1023
+--- !u!114 &1051
 MonoBehaviour:
   m_GameObject: {fileID: 1001}
   m_Enabled: 1
@@ -208,7 +468,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e50acc77aab1549a8c2ed0272f2def5f, type: 3}
   m_Name: ''
   m_EditorClassIdentifier: ''
-  leftLeg: {fileID: 1012}
-  rightLeg: {fileID: 1016}
-  accessory: {fileID: 1020}
+  leftLeg: {fileID: 1016}
+  rightLeg: {fileID: 1032}
+  leftArm: {fileID: 1026}
+  rightArm: {fileID: 1042}
+  accessory: {fileID: 1048}
   walkingSpeed: 2.2

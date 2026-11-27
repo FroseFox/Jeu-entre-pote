@@ -4,20 +4,24 @@
 
 Adaptation native en C# de la version web du dépôt FroseFox/Jeu-entre-pote, inspirée de *Round and Round Inc.* de Murbong. Le projet utilise le pipeline de rendu intégré et les entrées classiques de Unity. Les personnages proches et la porte sont des objets 3D.
 
+![Aperçu de la porte à quatre pales dans le quartier](Documentation/Quartier.jpg)
+
+Aperçu des modèles Unity au premier niveau d’amélioration des pales. Le rendu a été réalisé dans Blender avec la caméra du projet.
+
 ## Ouvrir la scène
 
 1. Décompressez le projet.
 2. Dans Unity Hub, utilisez **Add → Add project from disk** et sélectionnez le dossier contenant **Assets**, **Packages** et **ProjectSettings**.
 3. Ouvrez-le avec **Unity 6 LTS 6000.0.58f2**. Une première scène vierge ouvre automatiquement **Quartier**. Vous pouvez aussi choisir **Round and Round → Ouvrir le quartier**, puis lancer **Play**.
 
-Dans la fenêtre Game, cliquez sur la place, maintenez Espace ou tracez un cercle autour de la porte. La molette et les boutons de vue contrôlent le zoom. P met le jeu en pause.
+Dans la fenêtre **Game**, cliquez sur la place, maintenez **Espace** ou tracez un cercle autour de la porte. Les boutons ronds en bas achètent les améliorations. Les touches **1 à 9** activent les boutons visibles. La molette contrôle le zoom. Le bouton **Ⅱ** en haut à gauche et la touche **P** ouvrent le menu qui contient l’atelier complet, l’agence, les parties locales et les réglages. Dans la vue **Scene**, utilisez **Round and Round → Cadrer la porte** pour reprendre l’angle de la caméra.
 
 ## Modifier le jeu
 
 | Élément | Emplacement |
 | --- | --- |
 | Porte, panneaux, moyeu et garde-corps | Assets/Prefabs/Porte.prefab |
-| Forme des pales selon leur niveau | Assets/Scripts/BladeProfile.cs |
+| Profils des cinq niveaux de pales, parois courbes et jante à rayons | Assets/Geometry et Assets/Scripts/BladeProfile.cs |
 | Silhouette et marche des visiteurs | Assets/Prefabs/Visiteur.prefab et Assets/Scripts/Visitor.cs |
 | Coûts, progression, descriptions, limite de personnages individuels | Assets/Rules.asset |
 | Quartiers, transports et éclairage | Objets de la scène Quartier |
@@ -25,11 +29,11 @@ Dans la fenêtre Game, cliquez sur la place, maintenez Espace ou tracez un cercl
 | Interface et commandes de gestion | Assets/Scripts/RoundGame.Interface.cs |
 | Foule lointaine | Assets/Scripts/StreetCrowd.cs, Assets/Shaders/Street.shader et Assets/Materials/Passants.png |
 
-L’objet **Agence** relie la simulation aux objets de la scène. Le prefab de la porte contient un rotor à dix bras dont quatre sont actifs au départ. Chaque pale comporte cinq sections orientées par son profil. Pour voir la foule à grande échelle, sélectionnez une taille dans **Options** puis éloignez la caméra. Les grands groupes utilisent des rangées texturées avec les silhouettes animées tirées de la version web.
+L’objet **Agence** relie la simulation aux objets de la scène. Le prefab de la porte contient un rotor à dix bras dont quatre sont actifs au départ. Chaque pale utilise un maillage continu. Le composant **Blade Profile** de chaque bras contient les cinq profils de progression. Les garde-corps, les rayons et les cerclages sont des objets distincts du prefab. Le premier agrandissement ou l’achat de l’amélioration Transports ouvre les deux trémies dans la place. Pour voir la foule à grande échelle, sélectionnez une taille dans **Options** puis éloignez la caméra. Les grands groupes utilisent des rangées texturées avec les silhouettes animées tirées de la version web.
 
 ## Sauvegardes
 
-La session native se sauvegarde dans PlayerPrefs toutes les quatre secondes et à la fermeture de l’application. **Parties** propose quatre copies nommées. **Options → Nouvelle partie** réinitialise la partie active et l’affluence. Les copies nommées restent disponibles.
+La session native se sauvegarde dans PlayerPrefs toutes les quatre secondes et à la fermeture de l’application. **Pause → Parties locales** propose quatre copies nommées. **Options → Nouvelle partie** réinitialise la partie active et l’affluence. Les copies nommées restent disponibles.
 
 Pour récupérer une progression web, exportez le fichier JSON depuis **Parties locales** sur le site. Dans l’éditeur Unity, utilisez **Round and Round → Importer une partie web dans un emplacement…**. Lancez la scène, ouvrez **Parties** et chargez **Import web**. L’import reprend notamment la trésorerie, les niveaux, les entrées, les lignes de transport, les avantages, les contrats actifs et l’agence. Les visiteurs individuels et les animations en cours sont recréés pour la simulation native.
 

@@ -29,11 +29,11 @@ public sealed class StreetCrowd : MonoBehaviour
     void AddRows(int count,int side,float radius){
         for(int row=0;count>0;row++){
             int seats=Mathf.Min(count,8+row*2);
-            float half=seats*spacing*.5f,z=side*(radius+2.1f+rowSpacing*row);
+            float half=seats*spacing*.5f,z=side*(radius+.68f+rowSpacing*row);
             float center=Mathf.Sin(row*.034f)*Mathf.Min(row*.015f,5);
             int n=vertices.Count;
             vertices.Add(new Vector3(center-half,0,z));vertices.Add(new Vector3(center+half,0,z));
-            vertices.Add(new Vector3(center+half,.95f,z));vertices.Add(new Vector3(center-half,.95f,z));
+            vertices.Add(new Vector3(center+half,.70f,z));vertices.Add(new Vector3(center-half,.70f,z));
             float y=(row%8)*2,x=(row%7)*.14f;
             uv.Add(new Vector2(x,y));uv.Add(new Vector2(x+seats/16f,y));
             uv.Add(new Vector2(x+seats/16f,y+.999f));uv.Add(new Vector2(x,y+.999f));

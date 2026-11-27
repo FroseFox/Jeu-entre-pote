@@ -6,40 +6,263 @@ public sealed partial class RoundGame
 {
     Vector2 scroll;
     int slot;
-    string saveName="Ma partie";
-    static readonly CultureInfo French=CultureInfo.GetCultureInfo("fr-FR");
-    static string Num(double n)=>n>=1e9?(n/1e9).ToString("0.#",French)+" Md":n>=1e6?(n/1e6).ToString("0.#",French)+" M":Math.Floor(n).ToString("N0",French);
-    void Open(string target){panel=target;scroll=Vector2.zero;drag=false;}
-    static bool Button(string text,bool enabled=true){
-        bool previous=GUI.enabled;GUI.enabled=previous&&enabled;bool pressed=GUILayout.Button(text,GUILayout.MinHeight(32));GUI.enabled=previous;return pressed;
+    string saveName = "Ma partie";
+    static readonly CultureInfo French = CultureInfo.GetCultureInfo("fr-FR");
+    Texture2D symbols;
+    GUIStyle type, dialogButton, dialogLabel, dialogField;
+    Texture2D buttonPaper, buttonHover;
+    static readonly Color Ink = new Color(.055f, .055f, .055f);
+    static readonly Color Grey = new Color(.38f, .38f, .38f);
+    static readonly Color Pale = new Color(.88f, .88f, .88f);
+    static string Num(double n) => n >= 1e9 ? (n/1e9).ToString("0.##",French)+" Md" : n >= 1e6 ? (n/1e6).ToString("0.##",French)+" M" : Math.Floor(n).ToString("N0",French);
+    static string PriceLabel(double n) => n >= 10000 && n < 1e6 ? (n/1000).ToString("0.#", French)+" k" : Num(n);
+    float UiScale => Mathf.Max(.15f, Mathf.Min(Screen.height / 650f, Screen.width / 515f));
+    int DockCount => s.admitted >= 500 || L(6)+L(7)+L(8)>0 ? 9 : s.admitted >= 100 ? 8 : 6;
+    bool ShowReopen => s.admitted >= 1000;
+    void Open(string target) { panel=target; scroll=Vector2.zero; drag=false; }
+
+    Rect Dock(float w, float h)
+    {
+        float width = Mathf.Min(w-18, (DockCount + (ShowReopen ? 1 : 0)) * 60 + 22);
+        return new Rect((w-width)/2, h-99, width, 85);
     }
-    void OnGUI(){
-        float scale=Mathf.Clamp(Screen.width/850f,.82f,1.65f);
-        float w=Screen.width/scale,h=Screen.height/scale;
-        GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
-        GUILayout.BeginArea(new Rect(8,6,w-16,95),GUI.skin.box);
-        GUILayout.BeginHorizontal();GUILayout.Label("<b>ROUND & ROUND INC.</b>");GUILayout.FlexibleSpace();
-        if(Button(s.paused?"Reprendre":"Pause"))s.paused=!s.paused;
-        if(Button("Parties"))Open("Parties locales");GUILayout.EndHorizontal();
-        GUILayout.Label(branches[s.branch]+"     •     "+Num(s.cash)+" crédits     •     "+Num(s.admitted)+" entrées");
-        GUILayout.EndArea();
-        if(panel==""){
-            if(noticeClock>0)GUI.Box(new Rect(w/2-130,103,260,28),notice);
-            GUILayout.BeginArea(new Rect(8,h-102,w-16,94),GUI.skin.box);
-            GUILayout.BeginHorizontal();
-            if(Button("−"))Zoom(.8f);if(Button(Mathf.RoundToInt(s.zoom*100)+" %")){s.zoom=1;RefreshScene();}if(Button("+"))Zoom(1.25f);
-            if(Button("Faire tourner",!s.paused))Spin();
-            GUILayout.EndHorizontal();GUILayout.BeginHorizontal();
-            if(Button("Atelier"))Open("Atelier");if(Button("Agence"))Open("Agence");if(Button("Options"))Open("Options");
-            GUILayout.EndHorizontal();GUILayout.EndArea();return;
+    bool StreetInput(Vector3 mouse)
+    {
+        float scale = UiScale, w = Screen.width/scale, h = Screen.height/scale;
+        var point = new Vector2(mouse.x/scale, h-mouse.y/scale);
+        return !Dock(w,h).Contains(point) && !new Rect(8,8,54,54).Contains(point);
+    }
+    void PrepareDrawing()
+    {
+        if (type != null) return;
+        symbols = Resources.Load<Texture2D>("Symboles");
+        type = new GUIStyle(GUI.skin.label) { padding = new RectOffset(), margin = new RectOffset(), clipping = TextClipping.Clip };
+        dialogLabel = new GUIStyle(GUI.skin.label) {fontSize=16, wordWrap=true, padding=new RectOffset(5,5,5,5)};
+        dialogLabel.normal.textColor = Ink;
+        buttonPaper = ButtonTexture(.97f);
+        buttonHover = ButtonTexture(.88f);
+        dialogButton = new GUIStyle(GUI.skin.button) {
+            fontSize=15, padding=new RectOffset(11,11,7,7), margin=new RectOffset(3,3,3,3),
+            border=new RectOffset(7,7,7,7), wordWrap=true
+        };
+        foreach (var state in new[]{dialogButton.normal,dialogButton.focused,dialogButton.hover,dialogButton.active}) {
+            state.textColor=Ink;
+            state.background=state==dialogButton.hover || state==dialogButton.active ? buttonHover : buttonPaper;
         }
-        float width=Mathf.Min(560,w-16),height=Mathf.Min(500,h-110);
-        GUILayout.BeginArea(new Rect((w-width)/2,Mathf.Max(6,(h-height)/2),width,height),GUI.skin.window);
-        GUILayout.BeginHorizontal();GUILayout.Label(panel);GUILayout.FlexibleSpace();if(Button("Fermer"))panel="";GUILayout.EndHorizontal();
+        dialogField = new GUIStyle(dialogButton) {alignment=TextAnchor.MiddleLeft, fontStyle=FontStyle.Normal};
+    }
+    Texture2D ButtonTexture(float fill)
+    {
+        const int side = 16;
+        var tex = new Texture2D(side,side,TextureFormat.RGBA32,false) {hideFlags=HideFlags.HideAndDontSave, wrapMode=TextureWrapMode.Clamp};
+        for (int y=0;y<side;y++) for (int x=0;x<side;x++) {
+            float dx=Mathf.Max(0,Mathf.Abs(x-7.5f)-3.5f), dy=Mathf.Max(0,Mathf.Abs(y-7.5f)-3.5f);
+            float d=Mathf.Sqrt(dx*dx+dy*dy);
+            float c=Mathf.Lerp(.30f,fill,Mathf.Clamp01(4-d));
+            tex.SetPixel(x,y,new Color(c,c,c,Mathf.Clamp01(5-d)));
+        }
+        tex.Apply();
+        return tex;
+    }
+    void OnDestroy()
+    {
+        if (buttonHover) Destroy(buttonHover);
+        if (buttonPaper) Destroy(buttonPaper);
+        if (tickSound) Destroy(tickSound);
+    }
+    static void Fill(Rect r, Color color, float radius)
+    {
+        GUI.DrawTexture(r,Texture2D.whiteTexture,ScaleMode.StretchToFill,true,0,color,0,radius);
+    }
+    static void Plate(Rect r, float radius, Color fill, float stroke=1.5f)
+    {
+        Fill(r,Ink,radius);
+        Fill(new Rect(r.x+stroke,r.y+stroke,r.width-stroke*2,r.height-stroke*2),fill,Mathf.Max(0,radius-stroke));
+    }
+    void Text(Rect r,string value,int size,Color color,TextAnchor anchor=TextAnchor.MiddleCenter,bool bold=false)
+    {
+        type.fontSize=size;type.alignment=anchor;type.fontStyle=bold?FontStyle.Bold:FontStyle.Normal;type.normal.textColor=color;
+        GUI.Label(r,value,type);
+    }
+    void Symbol(Rect r,int id,Color color)
+    {
+        if (!symbols) return;
+        var previous=GUI.color; GUI.color=color;
+        GUI.DrawTextureWithTexCoords(r,symbols,new Rect((id%4)*.25f,(3-id/4)*.25f,.25f,.25f));
+        GUI.color=previous;
+    }
+    void DrawCounters(float w)
+    {
+        float right = w-24;
+        string cash=Num(s.cash);
+        type.fontSize=30;type.fontStyle=FontStyle.Bold;
+        float amountWidth=type.CalcSize(new GUIContent(cash)).x+3;
+        Symbol(new Rect(right-amountWidth-28,22,25,25),12,Ink);
+        Text(new Rect(right-amountWidth,12,amountWidth,43),cash,30,Ink,TextAnchor.MiddleRight,true);
+        Text(new Rect(right-240,55,240,24),Num(perMinute)+" / min",16,Ink,TextAnchor.MiddleRight);
+        Text(new Rect(right-284,86,284,17),"Entrées dans cette partie  "+Num(s.admitted),12,Grey,TextAnchor.MiddleRight);
+        double percent=100*s.admitted/rules.goal;
+        Text(new Rect(right-284,104,284,17),percent.ToString("0.########",French)+" % de l’humanité",12,Grey,TextAnchor.MiddleRight);
+        if (s.rush>0 || s.festival>0 || s.repair>0) {
+            string message=s.rush>0?"Affluence  "+Mathf.CeilToInt(s.rush)+" s":s.festival>0?"Festival  "+Mathf.CeilToInt(s.festival)+" s":"Réparation  "+Mathf.CeilToInt(s.repair)+" s";
+            Text(new Rect(right-200,126,200,20),message,13,Ink,TextAnchor.MiddleRight,true);
+        }
+    }
+    void DrawDock(float w,float h)
+    {
+        var dock=Dock(w,h);
+        Plate(dock,16,Color.white,1.8f);
+        int count=DockCount, slots=count+(ShowReopen?1:0);
+        float step=(dock.width-16)/slots;
+        string hint=null;
+        for(int k=0;k<slots;k++)
+        {
+            bool reopen=ShowReopen && k==4;
+            int i=ShowReopen && k>4?k-1:k;
+            float center=dock.x+8+(k+.5f)*step;
+            Rect hit=new Rect(center-step*.5f,dock.y+2,step,dock.height-4);
+            bool hover=hit.Contains(Event.current.mousePosition);
+            float d=Mathf.Min(step-6,reopen?58:47);
+            Rect circle=new Rect(center-d/2,dock.y+11+(47-d)/2,d,d);
+            bool affordable=reopen || CanBuy(i);
+            Plate(circle, d/2, affordable ? Ink : Color.white);
+            Rect icon=new Rect(circle.x+d*.15f,circle.y+d*.15f,d*.70f,d*.70f);
+            Symbol(icon,reopen?9:i,affordable?Color.white:Ink);
+            if(!reopen) {
+                var key=new Rect(circle.x-2,circle.yMax-11,14,14);
+                Plate(key,7,Color.white,1);
+                Text(key,(i+1).ToString(),9,Ink);
+            }
+            string price=reopen ? "+"+Num(Math.Sqrt(s.admitted/250)) : L(i)>=LevelLimit(i)?"MAX":PriceLabel(Price(i));
+            var priceRect=new Rect(center-step/2,dock.y+61,step,18);
+            Text(priceRect,(reopen?"": "● ")+price,12,affordable?Ink:Grey,TextAnchor.MiddleCenter,affordable);
+            if (hover) hint=reopen?"Réouverture de l’agence":rules.upgrades[i].title+"   ·   niveau "+L(i);
+            if (GUI.Button(hit,GUIContent.none,GUIStyle.none)) {
+                if (reopen) Open("Agence");
+                else if (affordable) Buy(i);
+                else Tell(rules.upgrades[i].title+" · "+(L(i)>=LevelLimit(i)?"niveau maximum":Num(Price(i))+" crédits"));
+            }
+        }
+        if (hint==null && s.seconds<14 && s.angle==0 && s.speed==0) hint="Cliquez sur la place pour tourner";
+        if(hint!=null) Badge(new Vector2(w/2,dock.y-20),hint,false);
+    }
+    void Badge(Vector2 center,string message,bool dark)
+    {
+        type.fontSize=dark?19:14;type.fontStyle=FontStyle.Bold;
+        float width=type.CalcSize(new GUIContent(message)).x+21;
+        Rect r=new Rect(center.x-width/2,center.y-15,width,30);
+        Plate(r,8,dark?Ink:Color.white);
+        Text(r,message,dark?19:14,dark?Color.white:Ink,TextAnchor.MiddleCenter,true);
+    }
+    struct Pulse
+    {
+        public Vector3 position;
+        public double start;
+        public bool active;
+        public string income;
+    }
+    readonly Pulse[] pulses = new Pulse[14];
+    int nextPulse;
+    void AddPulse(Vector3 position,string income)
+    {
+        pulses[nextPulse]=new Pulse {active=true, position=position, start=s.seconds, income=income};
+        nextPulse=(nextPulse+1)%pulses.Length;
+    }
+    void DrawPulses(float h)
+    {
+        var old=GUI.color;
+        for(int i=0;i<pulses.Length;i++) {
+            var pulse=pulses[i];
+            if(!pulse.active) continue;
+            float age=(float)(s.seconds-pulse.start);
+            float t=age/(pulse.income==null?.48f:.95f);
+            if(t<0 || t>=1) {pulses[i].active=false;continue;}
+            var screen=view.WorldToScreenPoint(pulse.position);
+            if(screen.z<=0) continue;
+            var center=new Vector2(screen.x/UiScale,h-screen.y/UiScale);
+            GUI.color=new Color(1,1,1,Mathf.Clamp01((1-t)*3));
+            if(pulse.income!=null) {
+                var drift=new Vector2(Mathf.Sin(i*2.4f)*22*t,-18-40*t);
+                Badge(center+drift,pulse.income,false);
+            } else {
+                float radius=5+25*Mathf.Sqrt(t);
+                for(int j=0;j<8;j++) {
+                    float a=j*Mathf.PI/4+i;
+                    Vector2 point=center+new Vector2(Mathf.Cos(a)*radius,Mathf.Sin(a)*radius*.65f);
+                    float size=4*(1-t)+1;
+                    Fill(new Rect(point.x-size/2,point.y-size/2,size,size),Ink,size*.4f);
+                }
+            }
+        }
+        GUI.color=old;
+    }
+    void DrawFeedback(float w,float h)
+    {
+        DrawPulses(h);
+        var anchor=view.WorldToScreenPoint(door.position+Vector3.up*.7f);
+        var point=new Vector2(anchor.x/UiScale,h-anchor.y/UiScale);
+        if (s.comboClock>0 && s.combo>0) Badge(new Vector2(point.x,Mathf.Max(63,point.y-113)), "Éjection × "+Num(s.combo),true);
+        if (noticeClock>0 && !notice.StartsWith("Éjection",StringComparison.Ordinal))
+            Badge(new Vector2(point.x,Mathf.Max(98,point.y-62-(2.1f-noticeClock)*12)),notice,false);
+    }
+    bool Button(string text,bool enabled=true)
+    {
+        Color old=GUI.color;
+        if (!enabled) GUI.color=new Color(.65f,.65f,.65f,.8f);
+        bool previous=GUI.enabled; GUI.enabled=previous&&enabled;
+        bool pressed=GUILayout.Button(text,dialogButton,GUILayout.MinHeight(32));
+        GUI.enabled=previous;GUI.color=old;
+        return pressed;
+    }
+    void Label(string text) => GUILayout.Label(text,dialogLabel);
+    void OnGUI()
+    {
+        PrepareDrawing();
+        var before=GUI.matrix;
+        float scale=UiScale, w=Screen.width/scale, h=Screen.height/scale;
+        GUI.matrix=Matrix4x4.Scale(new Vector3(scale,scale,1));
+        DrawCounters(w);
+        var pause=new Rect(20,19,34,34);
+        Plate(pause,17,Color.white);
+        Symbol(new Rect(pause.x+6,pause.y+6,22,22),s.paused?11:10,Ink);
+        if(panel=="") {
+            if(GUI.Button(new Rect(8,8,56,56),GUIContent.none,GUIStyle.none)) {
+                if(s.paused)s.paused=false;else Open("Pause");
+            }
+            DrawFeedback(w,h);
+            DrawDock(w,h);
+        }
+        if(panel!="") DrawPanel(w,h);
+        GUI.matrix=before;
+    }
+    void DrawPanel(float w,float h)
+    {
+        Fill(new Rect(0,0,w,h),new Color(1,1,1,.87f),0);
+        float width=Mathf.Min(575,w-30),height=Mathf.Min(495,h-32);
+        var r=new Rect((w-width)/2,(h-height)/2,width,height);
+        Plate(r,12,Color.white,2);
+        GUILayout.BeginArea(new Rect(r.x+16,r.y+12,width-32,height-24));
+        GUILayout.BeginHorizontal();
+        Label(panel);GUILayout.FlexibleSpace();
+        if (Button("Fermer")) {panel="";s.paused=false;}
+        GUILayout.EndHorizontal();
         scroll=GUILayout.BeginScrollView(scroll);
         switch(panel){
+        case "Pause":
+            if(Button("Reprendre")) {panel="";s.paused=false;}
+            if(Button("Atelier")) Open("Atelier");
+            if(Button("Agence")) Open("Agence");
+            if(Button("Parties locales")) Open("Parties locales");
+            if(Button("Options")) Open("Options");
+            GUILayout.BeginHorizontal();
+            if(Button("−"))Zoom(.8f);
+            if(Button("Vue  "+Mathf.RoundToInt(s.zoom*100)+" %")) {s.zoom=1;FrameCamera();}
+            if(Button("+"))Zoom(1.25f);
+            GUILayout.EndHorizontal();
+            Label("Cliquez sur la place ou maintenez Espace pour faire tourner la porte.");
+            break;
         case "Atelier":
-            GUILayout.Label(Num(s.cash)+" crédits disponibles");
+            Label(Num(s.cash)+" crédits disponibles");
             for(int i=0;i<rules.upgrades.Length;i++)if(Button(rules.upgrades[i].title+"   ·   niv. "+L(i)+"   ·   "+Num(Price(i))+" crédits",CanBuy(i)))Buy(i);
             if(Button("Lignes de transport"))Open("Transports");break;
         case "Transports":
@@ -49,7 +272,7 @@ public sealed partial class RoundGame
                     s.cash-=price;s.routes[i]++;Save(AutoKey);}
             }break;
         case "Agence":
-            GUILayout.Label("Agence "+(s.runs+1)+" · "+branches[s.branch]+" · "+Num(s.energy)+" énergie");
+            Label("Agence "+(s.runs+1)+" · "+branches[s.branch]+" · "+Num(s.energy)+" énergie");
             if(Button("Avantages permanents"))Open("Avantages");
             if(Button("Réouverture · "+Num(Math.Sqrt(s.admitted/250))+" énergie",s.admitted>=1000))Open("Confirmer la réouverture");
             if(Button("Tirage · "+s.tickets+" tickets",s.tickets>0&&Perk("draw")>0)){
@@ -64,21 +287,21 @@ public sealed partial class RoundGame
                     s.energy-=cost;s.perks[i]++;if(perk.id=="draw")s.tickets=Math.Min(3,s.tickets+1);Save(AutoKey);}
             }break;
         case "Confirmer la réouverture":
-            GUILayout.Label("Repartir avec vos avantages permanents et votre énergie ?");
+            Label("Repartir avec vos avantages permanents et votre énergie ?");
             if(Button("Rouvrir l’agence"))ResetGame(true);break;
         case "Options":
             if(Button(s.muted?"Activer le son":"Couper le son")){s.muted=!s.muted;Sound(1);}
-            GUILayout.Label("Foule dans la rue");
+            Label("Foule dans la rue");
             foreach(int n in new[]{0,2000,50000,250000,1000000,2000000})if(Button((s.crowdSize==n?"✓  ":"")+(n==0?"Selon l’affluence":Num(n)+" passants"))){s.crowdSize=n;RefreshScene();Save(AutoKey);}
             if(Button("Nouvelle partie"))Open("Recommencer");break;
         case "Recommencer":
-            GUILayout.Label("Remettre la rue, les crédits et les améliorations à zéro ? Les copies locales sont conservées.");
+            Label("Remettre la rue, les crédits et les améliorations à zéro ? Les copies locales sont conservées.");
             if(Button("Effacer la partie en cours"))ResetGame(false);break;
         case "Parties locales":
-            GUILayout.Label("La partie en cours se sauvegarde automatiquement.");
-            saveName=GUILayout.TextField(saveName,48);
+            Label("La partie en cours se sauvegarde automatiquement.");
+            saveName=GUILayout.TextField(saveName,48,dialogField);
             for(int i=0;i<4;i++){
-                string key=SlotKey(i);GUILayout.BeginHorizontal();GUILayout.Label(PlayerPrefs.GetString(key+".nom","Emplacement "+(i+1)));
+                string key=SlotKey(i);GUILayout.BeginHorizontal();Label(PlayerPrefs.GetString(key+".nom","Emplacement "+(i+1)));
                 if(Button("Enregistrer")){slot=i;if(PlayerPrefs.HasKey(key))Open("Remplacer la copie");else WriteSlot();}
                 if(Button("Charger",PlayerPrefs.HasKey(key))){slot=i;Open("Charger la copie");}GUILayout.EndHorizontal();
             }break;

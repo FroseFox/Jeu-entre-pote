@@ -15,7 +15,9 @@ Shader "RoundAndRound/Foule" {
  fixed4 frag(Pixel p):SV_Target{
  float phase=fmod(floor(_Time.y*8)+floor(p.uv.y/2),8);
  float2 uv=float2(p.uv.x,(phase+saturate(fmod(p.uv.y,2)))/8);
- fixed4 c=tex2D(_MainTex,uv);clip(c.a-.28);return fixed4(c.rgb,1);
+ fixed4 c=tex2D(_MainTex,uv);clip(c.a-.28);
+ half ink=dot(c.rgb,half3(.2126,.7152,.0722));
+ return fixed4(ink,ink,ink,1);
  }
  ENDCG
  }

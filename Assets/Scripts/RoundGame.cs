@@ -23,7 +23,32 @@ public sealed partial class RoundGame : MonoBehaviour
         public Visitor.Record[] actors;
     }
     Vector3 cameraTarget;
-    float cameraDistance;
+    float cameraDistance, initialZoomSize;
+    int previousWidth, previousHeight;
+    public GameObject gallery, stairCovers;
+    public Transform[] barrierRuns;
+    BladeProfile[] blades;
+    bool HasGallery => L(4) > 0 || L(8) > 0;
+    readonly double[] minuteAdmissions = new double[60];
+    double perMinute;
+    int rateSecond;
+    void ClearMeter()
+    {
+        Array.Clear(minuteAdmissions, 0, minuteAdmissions.Length);
+        rateSecond = (int)s.seconds;
+        perMinute = 0;
+        noticeClock = 0;
+        Array.Clear(pulses, 0, pulses.Length);
+    }
+    void AdvanceMeter()
+    {
+        int now = (int)s.seconds;
+        while (rateSecond < now) {
+            int bucket = ++rateSecond % minuteAdmissions.Length;
+            perMinute -= minuteAdmissions[bucket];
+            minuteAdmissions[bucket] = 0;
+        }
+    }
     Run s=new Run();
     readonly List<Visitor> people=new List<Visitor>();
     readonly Stack<Visitor> pool=new Stack<Visitor>();
@@ -45,6 +70,8 @@ public sealed partial class RoundGame : MonoBehaviour
     float Top=>(8+Blade)*(Perk("license")>0?1.3f:1);
     const string AutoKey="RoundAndRound.Native.Current.v1";
     void Awake(){
+        blades = rotor.GetComponentsInChildren<BladeProfile>(true);
+        initialZoomSize = view.orthographicSize;
         cameraDistance=Vector3.Dot(door.position-view.transform.position,view.transform.forward);
         cameraTarget=view.transform.position+view.transform.forward*cameraDistance;
         var samples=new float[2646];
@@ -55,9 +82,20 @@ public sealed partial class RoundGame : MonoBehaviour
     void RefreshScene(){
 
         if(sites!=null)for(int i=0;i<sites.Length;i++)if(sites[i])sites[i].SetActive(i==s.branch);
-        for(int i=0;i<rotor.childCount;i++){
-            var blade=rotor.GetChild(i);bool active=i<bladeCounts[Blade];blade.gameObject.SetActive(active);
-            if(active){blade.localRotation=Quaternion.Euler(0,i*360f/bladeCounts[Blade],0);blade.GetComponent<BladeProfile>()?.Shape(Blade);}
+        foreach (var wall in barrierRuns) {
+            var p = wall.localPosition;
+            p.x = Mathf.Sign(p.x) * (Radius + .01f);
+            wall.localPosition = p;
+        }
+        if (gallery) gallery.SetActive(HasGallery);
+        if (stairCovers) stairCovers.SetActive(!HasGallery);
+        for (int i = 0; i < blades.Length; i++) {
+            bool active = i < bladeCounts[Blade];
+            var blade = blades[i];
+            blade.gameObject.SetActive(active);
+            if (!active) continue;
+            blade.transform.localRotation = Quaternion.Euler(0, i * 360f / bladeCounts[Blade], 0);
+            blade.Shape(Blade);
         }
         door.localScale=Vector3.one*(Radius/rules.initialRadius);
         rotor.localRotation=Quaternion.Euler(0,s.angle*Mathf.Rad2Deg,0);
@@ -69,12 +107,24 @@ public sealed partial class RoundGame : MonoBehaviour
         return (int)Math.Max(0,Math.Min(2000000,total)-people.Count);
     }
     void Update(){
-        if(Input.GetKeyDown(KeyCode.Escape)){panel="";drag=false;}
-        if(Input.GetKeyDown(KeyCode.P)&&panel=="")s.paused=!s.paused;
+        if (previousWidth != Screen.width || previousHeight != Screen.height) FrameCamera();
+        if (Input.GetKeyDown(KeyCode.Escape)) {
+            if (panel.Length > 0) { panel = ""; s.paused = false; }
+            else Open("Pause");
+            drag = false;
+            return;
+        }
+        if (Input.GetKeyDown(KeyCode.P) && (panel == "" || panel == "Pause")) {
+            s.paused = false;
+            if (panel == "") Open("Pause"); else panel = "";
+            return;
+        }
         if(panel!=""||s.paused)return;
         float dt=Mathf.Min(.12f,Time.deltaTime);
         Vector3 m=Input.mousePosition;
-        bool onStreet=m.y>Screen.height*.24f && m.y<Screen.height*.82f;
+        bool onStreet = StreetInput(m);
+        for (int i = 0; i < DockCount; i++)
+            if (Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha1 + i))) Buy(i);
         if(Input.GetMouseButtonDown(0)&&onStreet){
             var bp=view.WorldToScreenPoint(balloon.position);
             if(s.balloonAge>=0&&Vector2.Distance(m,bp)<Mathf.Max(22,Screen.height*.045f)){Pop();return;}
@@ -85,7 +135,7 @@ public sealed partial class RoundGame : MonoBehaviour
             s.speed=Mathf.Clamp(s.speed+diff*.022f,0,Top);}
         if(Input.GetKeyDown(KeyCode.Space))Spin();
         float wheel=Input.mouseScrollDelta.y;if(onStreet&&wheel!=0)Zoom(wheel>0?1.25f:.8f);
-        s.seconds+=dt;s.waveClock+=dt;s.eventClock+=dt;s.balloonClock+=dt;s.drawClock+=dt;
+        s.seconds+=dt;AdvanceMeter();s.waveClock+=dt;s.eventClock+=dt;s.balloonClock+=dt;s.drawClock+=dt;
         s.rush=Mathf.Max(0,s.rush-dt);s.festival=Mathf.Max(0,s.festival-dt);s.repair=Mathf.Max(0,s.repair-dt);s.gulp=Mathf.Max(0,s.gulp-dt);
         s.comboClock-=dt;if(s.comboClock<=0)s.combo=0;
         bool manual=Input.GetKey(KeyCode.Space)||drag;
@@ -113,7 +163,8 @@ public sealed partial class RoundGame : MonoBehaviour
         while(s.part>=arc){s.part-=arc;Admit(manual);}
         int place=0;
         for(int i=0;i<people.Count;){
-            var p=people[i];p.Step(dt,s.speed,p.InLine?place++:0,Radius);
+            var p=people[i];p.Step(dt,s.speed,p.InLine?place++:0,Radius,HasGallery);
+            if (p.JustLanded) AddPulse(p.transform.position, null);
             if(p.Finished){p.gameObject.SetActive(false);pool.Push(p);people.RemoveAt(i);}else i++;
         }
         rotor.localRotation=Quaternion.Euler(0,s.angle*Mathf.Rad2Deg,0);
@@ -124,7 +175,8 @@ public sealed partial class RoundGame : MonoBehaviour
     float PointerAngle(Vector3 p){p-=view.WorldToScreenPoint(door.position);return Mathf.Atan2(p.y,p.x)*Mathf.Rad2Deg;}
     void Spin(){s.speed=Mathf.Min(Top,s.speed+1.55f*(1+.25f*L(1))*(1+.25f*Perk("force")));Sound(.7f);}
     void Zoom(float factor){s.zoom=Mathf.Clamp(s.zoom*factor,.01f,1.5f);FrameCamera();}
-    void FrameCamera(){view.orthographicSize=6.6f/s.zoom;view.transform.position=cameraTarget-view.transform.forward*Mathf.Max(cameraDistance,view.orthographicSize*2.8f);view.farClipPlane=Mathf.Max(3000,view.orthographicSize*6);}
+    void FrameCamera(){previousWidth=Screen.width;previousHeight=Screen.height;
+        view.orthographicSize=initialZoomSize*Mathf.Max(1,1.08f/Mathf.Max(.1f,view.aspect))/s.zoom;view.transform.position=cameraTarget-view.transform.forward*Mathf.Max(cameraDistance,view.orthographicSize*2.8f);view.farClipPlane=Mathf.Max(3000,view.orthographicSize*6);}
     void Sound(float pitch){if(!s.muted&&speaker){speaker.pitch=pitch;speaker.PlayOneShot(tickSound);}}
     void Tell(string text){notice=text;noticeClock=2.1f;}
     Visitor Make(){return pool.Count>0?pool.Pop():Instantiate(visitorPrefab);}
@@ -147,14 +199,17 @@ public sealed partial class RoundGame : MonoBehaviour
             if(fling){bounced=1;s.combo++;s.comboClock=2.1f+.3f*Perk("breath");Tell("Éjection ×"+s.combo);continue;}
             switch(p.role){case "Coursier":bonus+=12*fare;break;case "Robot":s.repair=18;break;case "Défilé":s.festival=18;break;case "Guide":s.waiting+=2*Wave;break;case "Idole":s.rush=14;break;case "VIP":bonus+=fare*2*(1+.5*Perk("vip"));break;case "Voyageur":bonus+=fare*.5;break;case "Géant":case "Chargement":bonus+=fare*30;break;}
         }
-        double paid=n-bounced;s.waiting-=paid;s.admitted+=paid;s.departures+=paid;
+        double paid=n-bounced;minuteAdmissions[rateSecond%60]+=paid;perMinute+=paid;s.waiting-=paid;s.admitted+=paid;s.departures+=paid;
         if(paid>0){lastIncome=Math.Floor(fare*paid*(s.festival>0?2:1)*(manual?1+.2*Perk("crank"):1)*(1+.01*Math.Min(50,s.combo)*(1+.1*Perk("fling")))+bonus);
-            s.cash+=lastIncome;s.earned+=lastIncome;if(bounced==0)Tell("+"+Num(lastIncome)+" crédits");Sound(1.2f);}
+            s.cash+=lastIncome;s.earned+=lastIncome;
+            AddPulse(door.position + new Vector3(.25f, .68f, Radius * .64f), "+"+Num(lastIncome));
+            Sound(1.2f);}
     }
     void HideBalloon(){s.balloonAge=-1;balloon.gameObject.SetActive(false);}
     void Pop(){HideBalloon();s.cash+=6*Math.Pow(1.7,L(6));s.rush=12;Arrive(Wave*4);Tell("Ballon éclaté · affluence pendant 12 s");Sound(1.6f);}
     double Price(int i)=>Math.Ceiling(rules.upgrades[i].cost*Math.Pow(rules.upgrades[i].factor,L(i))*(i==0&&s.contracts[1]?Math.Max(.5,1-.1*L(1)):1));
-    bool CanBuy(int i)=>L(i)<(i==5?4:i==1?10:i==7?4+2*s.runs:80)&&s.cash>=Price(i);
+    int LevelLimit(int i)=>i==5?4:i==1?10:i==7?4+2*s.runs:80;
+    bool CanBuy(int i)=>L(i)<LevelLimit(i)&&s.cash>=Price(i);
     void Buy(int i){if(!CanBuy(i))return;s.cash-=Price(i);s.levels[i]++;if(i==0)Arrive(Wave*3);if(i==4&&s.contracts[0])s.rush=60;RefreshScene();Sound(1.5f);}
     void ClearPeople(){foreach(var p in people){p.gameObject.SetActive(false);pool.Push(p);}people.Clear();}
     void ResetGame(bool prestige){
@@ -163,14 +218,14 @@ public sealed partial class RoundGame : MonoBehaviour
             s.runs=old.runs+1;s.allTime=old.allTime+old.admitted;s.branch=old.branch;s.trust=old.trust;
             if(old.admitted>=rules.goal){s.branch=(old.branch+1)%4;s.trust+=3;}
             s.levels[0]=Perk("regulars");s.levels[1]=Perk("gearbox");s.levels[2]=Perk("warehouse");s.levels[3]=Perk("spare");s.cash=70*Math.Pow(Perk("initial"),2.7);}
-        lastIncome=0;guestTimer=0;vehicle.gameObject.SetActive(false);panel="";RefreshScene();Save(AutoKey);
+        ClearMeter();lastIncome=0;guestTimer=0;vehicle.gameObject.SetActive(false);panel="";RefreshScene();Save(AutoKey);
     }
     void Save(string key){s.actors=people.ConvertAll(p=>p.Capture()).ToArray();PlayerPrefs.SetString(key,JsonUtility.ToJson(s));PlayerPrefs.Save();}
     bool Load(string key){
         if(!PlayerPrefs.HasKey(key))return false;
         Run next;try{next=JsonUtility.FromJson<Run>(PlayerPrefs.GetString(key));}catch(ArgumentException){return false;}
         if(next==null||next.levels?.Length!=9||next.perks?.Length!=rules.perks.Length||next.routes?.Length!=3||next.routeClocks?.Length!=3||next.contracts?.Length!=3)return false;
-        ClearPeople();s=next;s.zoom=Mathf.Clamp(s.zoom,.01f,1.5f);
+        ClearPeople();s=next;ClearMeter();s.zoom=Mathf.Clamp(s.zoom,.01f,1.5f);
         if(s.actors!=null)foreach(var r in s.actors){if(people.Count>=rules.individualLimit)break;var p=Make();p.Restore(r);people.Add(p);}
         RefreshScene();return true;
     }

@@ -1,0 +1,161 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eac3baa31222583936a42b4e4ac2a38b, type: 3}
+  m_Name: Règles du quartier
+  m_EditorClassIdentifier: ''
+  upgrades:
+  - id: promo
+    title: Publicité
+    cost: 25
+    factor: 1.65
+  - id: gear
+    title: Engrenages
+    cost: 20
+    factor: 1.62
+  - id: fly
+    title: Volant d’inertie
+    cost: 120
+    factor: 1.72
+  - id: motor
+    title: Motorisation
+    cost: 90
+    factor: 1.8
+  - id: expand
+    title: Agrandissement
+    cost: 180
+    factor: 1.92
+  - id: blade
+    title: Pales
+    cost: 260
+    factor: 2.1
+  - id: fee
+    title: Tarif d’entrée
+    cost: 45
+    factor: 1.85
+  - id: group
+    title: Groupes
+    cost: 150
+    factor: 2
+  - id: route
+    title: Transports
+    cost: 320
+    factor: 2.15
+  perks:
+  - id: gulp
+    title: Aspiration
+    description: 8 tours de manivelle attirent la file vers l’entrée pendant 25 s.
+    cost: 2
+    limit: 1
+  - id: drone
+    title: Drone publicitaire
+    description: Survole la place et éclate les ballons publicitaires.
+    cost: 3
+    limit: 1
+  - id: draw
+    title: Roue des prix
+    description: Un ticket à l’achat, puis toutes les 4 min de jeu. Réserve de 3 tickets.
+    cost: 4
+    limit: 1
+  - id: fling
+    title: Prime de combo
+    description: Augmente de 10 points la prime de chaque palier d’éjections.
+    cost: 2
+    limit: 5
+  - id: breath
+    title: Temps de reprise
+    description: Prolonge le combo de 0,3 s par niveau.
+    cost: 2
+    limit: 3
+  - id: flyMaster
+    title: Inertie prolongée
+    description: Prolonge la roue libre de 25 % par niveau.
+    cost: 3
+    limit: 4
+  - id: license
+    title: Permis de vitesse
+    description: À la main, les pales peuvent atteindre 130 % de leur vitesse maximale.
+    cost: 7
+    limit: 1
+  - id: routes
+    title: Réseau de transport
+    description: Augmente la taille des arrivées et rapproche les rotations des lignes.
+    cost: 3
+    limit: 5
+  - id: vip
+    title: Invitations VIP
+    description: Augmente les primes des visiteurs spéciaux.
+    cost: 3
+    limit: 3
+  - id: delivery
+    title: Contrat de livraison
+    description: Un gros chargement toutes les 5 min. Un passage rapide rapporte jusqu’à quatre fois la prime.
+    cost: 6
+    limit: 1
+  - id: giant
+    title: Invitation des géants
+    description: Les géants rendent visite plus souvent à partir de la deuxième agence.
+    cost: 5
+    limit: 1
+  - id: regulars
+    title: Habitués
+    description: Une réouverture démarre avec davantage de publicité.
+    cost: 2
+    limit: 2
+  - id: gearbox
+    title: Boîte de rechange
+    description: Démarre avec un niveau d’engrenages supplémentaire.
+    cost: 2
+    limit: 3
+  - id: spare
+    title: Moteur de secours
+    description: Démarre avec la motorisation au niveau 1.
+    cost: 3
+    limit: 1
+  - id: warehouse
+    title: Réserve de volants
+    description: Démarre avec le volant d’inertie au niveau 1.
+    cost: 2
+    limit: 1
+  - id: initial
+    title: Capital de départ
+    description: Augmente les crédits disponibles après une réouverture.
+    cost: 3
+    limit: 5
+  - id: crank
+    title: Maîtrise de la manivelle
+    description: Ajoute 20 % au tarif pendant la rotation manuelle.
+    cost: 3
+    limit: 10
+  - id: royalty
+    title: Redevances
+    description: Accorde 10 % d’énergie supplémentaire à chaque réouverture.
+    cost: 5
+    limit: 5
+  - id: admin
+    title: Équipe administrative
+    description: Achète automatiquement l’amélioration admissible la moins chère. Clic droit pour exclure une carte.
+    cost: 150
+    limit: 1
+  - id: force
+    title: Manivelle renforcée
+    description: Augmente la force transmise de 25 % par niveau.
+    cost: 1
+    limit: 12
+  - id: profit
+    title: Accord tarifaire
+    description: Augmente la recette de base de 22 % par niveau.
+    cost: 1
+    limit: 12
+  - id: capacity
+    title: Accueil collectif
+    description: Augmente la capacité de 35 % par niveau.
+    cost: 1
+    limit: 12
+  goal: 8200000000
+  initialRadius: 2.35
+  individualLimit: 80
+  m_GameObject: {fileID: 0}

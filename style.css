@@ -18,3 +18,16 @@ button,.stage,.workshop{touch-action:manipulation}
 #world,#crank{touch-action:none}
 .stage,.workshop button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 @media(max-width:650px){.option select{font-size:1rem}}
+
+#slot-form label,.save-row strong,.save-row small{display:block}
+#slot-form label{font-weight:650;font-size:.83rem;margin-bottom:6px}
+#slot-form>div{display:flex;align-items:stretch;gap:7px}
+#slot-name{min-width:0;flex:1;border:1px solid var(--line);border-radius:5px;padding:8px;background:var(--white);color:var(--ink);font-size:16px}
+#slot-form .primary{margin:0;width:auto;padding:8px 12px}
+#slot-status:empty{display:none}
+.save-row{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:11px 0}
+.save-row>div{flex:1;min-width:0;overflow-wrap:anywhere}
+.save-row small{margin-top:2px;color:var(--sub);font-size:.73rem}
+.slot-load,.slot-delete{min-height:34px;border:1px solid var(--line);border-radius:5px}
+.slot-load{padding:4px 9px;font-size:.79rem;font-weight:650}
+.slot-delete{width:32px;font-size:1.1rem}

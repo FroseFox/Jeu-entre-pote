@@ -195,7 +195,7 @@ const EventArt = (() => {
     const stageTime = scene.time + (a.phase || 0) * .4;
     sprite(scene, a.x, a.y, a.fly || 0, c => {
       const sway = Math.sin(stageTime * 5.5);
-      if (a.mode === 'flung') c.rotate(a.age * 6);
+      if (a.mode === 'flung' || a.mode === 'recover') c.rotate(scene.tumble(a));
       switch (a.type) {
         case 'guide': {
           scene.line([[3,-12],[3.8,-32]],ink,1);

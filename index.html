@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f6f6f3"><title>Round &amp; Round Inc. — Édition web</title>
 <meta name="description" content="Faites tourner une porte, accueillez les visiteurs et développez votre entreprise dans cette simulation incrémentale en noir et blanc.">
-<link rel="icon" type="image/svg+xml" href="mark.svg"><link rel="stylesheet" href="style.css?v=foule-1">
+<link rel="icon" type="image/svg+xml" href="mark.svg"><link rel="stylesheet" href="style.css?v=passage-2">
 </head>
 <body>
 <header class="top">
@@ -15,7 +15,7 @@
   <section class="stage" aria-label="Simulation de la porte tournante">
     <canvas id="world" aria-label="Porte tournante isométrique. Tracez des cercles sur la porte ou appuyez sur Espace pour la faire tourner."></canvas>
     <aside class="stats plate">
-      <div class="funds"><div class="eyebrow">Trésorerie</div><div class="balance"><span class="currency big"></span><b id="cash">0</b></div></div>
+      <div class="funds"><div class="eyebrow">Trésorerie</div><div class="balance"><span id="cash-coin" class="currency big"></span><b id="cash">0</b></div></div>
       <div class="statrow"><span><i data-i="users"></i>Visiteurs admis</span><b id="visits">0</b></div>
       <div class="statrow"><span><i data-i="activity"></i>Débit / min</span><b id="flow">0</b></div>
       <div class="statrow" id="gulp-info" hidden><span><i data-i="fly"></i>Aspiration</span><b id="gulp-value"></b></div>
@@ -38,7 +38,7 @@
     </div><div id="cards"></div>
   </section>
 </main>
-<footer><span><i data-i="save"></i><span id="save-label">Sauvegarde locale</span></span><span class="gesture"><i data-i="mouse"></i>Tracez des cercles sur la porte pour accélérer.</span><button id="help"><i data-i="help"></i>Commandes</button></footer>
+<footer><button id="saved-games" title="Ouvrir les parties enregistrées sur cet appareil"><i data-i="save"></i><span id="save-label">Parties locales</span></button><span class="gesture"><i data-i="mouse"></i>Tracez des cercles sur la porte pour accélérer.</span><button id="help"><i data-i="help"></i>Commandes</button></footer>
 <dialog id="dialog"><div class="dialog-head"><h2 id="dialog-title"></h2><button class="iconBtn" id="close" aria-label="Fermer"><i data-i="close"></i></button></div><div id="dialog-body"></div></dialog>
-<script src="icons.js"></script><script src="economy.js"></script><script src="crowd.js?v=foule-1"></script><script src="world.js?v=foule-1"></script><script src="event-art.js"></script><script src="branch-art.js?v=foule-1"></script><script src="management.js"></script><script src="game.js?v=foule-1"></script>
+<script src="icons.js"></script><script src="economy.js"></script><script src="crowd.js?v=passage-2"></script><script src="world.js?v=passage-2"></script><script src="event-art.js?v=passage-2"></script><script src="branch-art.js?v=foule-1"></script><script src="management.js"></script><script src="local-saves.js?v=passage-2"></script><script src="game.js?v=passage-2"></script>
 </body></html>

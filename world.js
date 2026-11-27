@@ -24,7 +24,7 @@ class DoorScene{
  textOnFloor(str,x,y,size,shade,axis=0){const c=this.c,p=this.p(x,y),s=this.scale;c.save();c.transform(.928*s,.248*s,-.373*s,.617*s,p[0],p[1]);c.rotate(axis);c.fillStyle=shade;c.font='700 '+size+'px BC,Arial,sans-serif';c.letterSpacing='1.2px';c.fillText(str,0,0);c.restore()}
  seed(){
   for(let i=0;i<23;i++){let a=this.addPerson(-105+Math.random()*240,135+Math.random()*260);if(a){a.x=a.tx+(Math.random()-.5)*50;a.y=a.ty+Math.random()*45}}
-  for(let i=0;i<9;i++){let a=this.addPerson(30+Math.random()*135,-135-Math.random()*230);if(a){a.mode='out';a.tx=a.x+110;a.ty=a.y-300}}
+  for(let i=0;i<9;i++){let a=this.addPerson(30+Math.random()*135,-135-Math.random()*230);if(a){a.mode='out';a.tx=a.x+110;a.ty=a.y-300;this.crowd.board(a,true)}}
  }
  addPerson(x,y,type='walk'){
   if(this.people.length>=this.maxPeople)return;
@@ -37,7 +37,8 @@ class DoorScene{
   const spawned=[];
   for(let i=0;i<count;i++){
    if(this.people.length>=this.maxPeople){
-    const idx=this.people.findIndex(p=>p.type==='walk'&&p.mode!=='inside');
+    let idx=this.people.findIndex(p=>p.boarded&&p.type==='walk'&&p.mode==='out');
+    if(idx<0)idx=this.people.findIndex(p=>p.type==='walk'&&(p.mode==='queue'||p.mode==='out'));
     if(idx<0)break;this.people.splice(idx,1)
    }
    const a=this.addPerson(extra.x??((Math.random()-.5)*110),extra.y??(this.radius+40+i*5),type);
@@ -64,9 +65,9 @@ class DoorScene{
    p.mode='inside';p.age=0;p.direction=Math.sign(this.speed)||1;p.orbit=Math.atan2(p.y,p.x);
    p.radial=Math.min(this.radius-9,Math.hypot(p.x,p.y));
    p.fling=fast&&j===0&&!['giant','cargo','robot'].includes(p.type);
-   if(p.fling)result.flung++;else result.passengers.push(p);
+   if(p.fling){result.flung++;p.fromX=p.x;p.fromY=p.y;p.flingBegan=this.time}else result.passengers.push(p);
   }
-  this.crowd.passage(n-result.flung,count);
+  this.crowd.passage(n-result.flung,result.passengers);
   return result
  }
  transport(level,count=10,route='bus'){
@@ -104,11 +105,11 @@ class DoorScene{
     continue
    }
    if(a.mode==='flung'){
-    const f=Math.min(1,a.age/a.airTime);a.x=a.startX+a.vx*a.age;a.y=a.startY+a.vy*a.age;a.fly=4*f*(1-f)*95;
+    const f=Math.min(1,a.age/a.airTime);a.x=a.startX+a.vx*a.airTime*f;a.y=a.startY+a.vy*a.airTime*f;a.fly=4*f*(1-f)*95;
     const [x,y]=this.p(a.x,a.y,a.fly+9);let hit=this.balloonAt(x,y);if(hit&&this.pop(hit))events.push({kind:'balloon'});
-    if(f===1){a.mode='recover';a.age=0}continue
+    if(f===1){a.mode='recover';a.age=0;events.push({kind:'land'})}continue
    }
-   if(a.mode==='recover'){if(a.age>=.52){a.mode='queue';a.age=0}continue}
+   if(a.mode==='recover'){a.fly=8*Math.sin(Math.PI*Math.min(1,a.age/.28))*(1-Math.min(1,a.age/.28));if(a.age>=.52){a.mode='queue';a.age=0}continue}
    if(a.mode==='queue'){
     const near=['guide','robot','cargo','giant','idol','courier','traveler','vip','parade'].includes(a.type);
     const corridor=k*(this.effects.gulp?.35:1);
@@ -169,7 +170,7 @@ class DoorScene{
   for(let y of [r+66,r+160,-r-88]){
    this.face([[-6,y+8],[6,y+8],[6,y-5],[13,y-5],[0,y-18],[-13,y-5],[-6,y-5]],'#b9bcb3')
   }
-  this.textOnFloor('ENTRÉE',-39,r+121,21,'#a3a79c');this.textOnFloor('SORTIE',-36,-r-118,19,'#b5b8af');
+  this.textOnFloor('ENTRÉE',-39,r+121,21,'#a3a79c');this.textOnFloor('SORTIE',-36,-r-118,19,'#b5b8af');this.exitStairs();
   this.textOnFloor('R&R',-323,94,21,'#b7bab2');
   for(let side of [-1,1]){
    let a=side*r,b=side*(range+100);
@@ -231,6 +232,14 @@ class DoorScene{
  }
  blade(t,level){
   const r=this.radius,end=r-7,pts=[],wid=(u)=>2.7+(level===1?5.4:2.2)*u,arc=(u)=>t+this.profile.bend*Math.pow(u,this.profile.curve);
+  if(this.scale>.2&&this.speed>.45&&(this.effects.manual||this.speed>3)){
+   const endAngle=arc(1),sweep=Math.min(.60,this.speed*.063);
+   // The pointed tail follows the actual direction and curvature of this blade.
+   for(const radius of [end-5,end-13]){
+    const marks=this.arc(radius,endAngle-sweep,endAngle-.028,19,8);
+    this.face([...marks,...this.arc(radius+1.8,endAngle-.028,endAngle-sweep*.58,19,5)],'rgba(89,95,80,.42)')
+   }
+  }
   const pos=(u,w,z)=>{let a=arc(u),d=16+(end-16)*u;return [Math.cos(a)*d-Math.sin(a)*w,Math.sin(a)*d+Math.cos(a)*w,z]};
   for(let i=0;i<=16;i++)pts.push(i/16);
   const wide=Math.sin(t+.37)>=0?1:-1,z=35;
@@ -256,7 +265,7 @@ class DoorScene{
  }
  person(a){
   const c=this.c,s=this.scale,[x,y]=this.p(a.x,a.y,a.fly),i=a.id,ss=s*(.87+(i%5)*.045);const step=Math.sin(this.time*5+a.phase)*3.1*a.move,bob=Math.abs(step)*.20;const turn=a.mode==='out'?-.76:1;
-  c.save();c.translate(x,y);c.scale(ss*turn,ss);if(a.mode==='flung')c.rotate(a.age*8);if(a.mode==='recover')c.rotate(1.35*Math.max(0,1-a.age/.52));c.translate(0,-bob);
+  c.save();c.translate(x,y);c.scale(ss*turn,ss);if(a.mode==='flung'||a.mode==='recover')c.rotate(this.tumble(a));c.translate(0,-bob);
   const coat=a.type==='idol'?'#eceee7':['#343630','#20221d','#52554d','#171914','#45483f'][i%5],head=['#252720','#46483f','#161813','#33352d'][i%4];
   const leg=(px,py,to)=>{this.line([[px,-8],[px+to*.3,-4],[px+to,py]],'#171914',3.35);this.line([[px+to,py],[px+to-1.5,py+.2]],'#151712',2.65)};
   leg(2.2,-.9,-step);leg(-1.8,.2,step);
@@ -302,6 +311,49 @@ class DoorScene{
   for(let k=0;k<6;k++)this.face([[x+3+k*8,y+19.2,11],[x+9+k*8,y+19.2,11],[x+9+k*8,y+19.2,17],[x+3+k*8,y+19.2,17]],'#42483b');
   for(let k of [8,44]){let [px,py]=this.p(x+k,y+19,5);this.dot(px,py,3.8*this.scale,4.3*this.scale,'#282c23');this.dot(px,py,1.6*this.scale,1.8*this.scale,'#bec3b4')}
   if(l>1)this.box(x+16,y+4,21,16,9,2,'#959d8a','#686e5d','#7f8774')
+ }
+ exitStairs(){
+  const y=-this.radius-26;
+  this.face([[-31,y+3],[31,y+3],[31,y-58],[-31,y-58]],'#b5b8af','#74796e',1);
+  this.face([[-26,y],[26,y],[26,y-54],[-26,y-54]],'#34382e');
+  for(let i=0;i<7;i++){
+   const front=y-i*7,tone=165-i*14;
+   this.face([[-25,front],[25,front],[25,front-5],[-25,front-5]],'rgb('+tone+','+(tone+3)+','+(tone-3)+')');
+   this.edge([[-25,front],[25,front]],'#d9dcd2',.8)
+  }
+  for(const x of [-30,26])this.box(x,y-58,0,4,59,4,'#dedfd7','#878c80','#a5aa9e');
+  this.edge([[-25,y+1],[25,y+1]],'#eeefe9',1.4)
+ }
+ tumble(a){
+  return a.mode==='recover'?1.35*Math.max(0,1-a.age/.52):Math.min(1,a.age/a.airTime)*(2*Math.PI+1.35)
+ }
+ airborneTrail(a){
+  const c=this.c,s=this.scale,age=Math.min(a.age,a.airTime);
+  if(age<.025||s<.13)return;
+  c.save();
+  for(let line=0;line<2;line++){
+   const pts=[];
+   for(let i=0;i<5;i++){
+    const t=Math.max(0,age-.14+i*.028-line*.014),u=t/a.airTime;
+    const at=this.p(a.startX+a.vx*t,a.startY+a.vy*t,4*u*(1-u)*95+6+line*5);
+    pts.push(at)
+   }
+   c.globalAlpha=.72-line*.27;this.line(pts,'#f4f5ed',(3.5-line)*s);
+   this.line(pts,'#454a3e',(1.35-line*.35)*s)
+  }
+  c.restore()
+ }
+ landing(a){
+  const t=Math.min(1,a.age/.46);
+  if(t>=1||this.scale<.13)return;
+  const c=this.c,[x,y]=this.p(a.x,a.y),s=this.scale;c.save();c.globalAlpha=(1-t)*.85;
+  this.dot(x,y,(7+24*t)*s,(3+10*t)*s,'','#f6f7ef',3*s);
+  this.dot(x,y,(7+24*t)*s,(3+10*t)*s,'','#626958',1.2*s);
+  for(let i=0;i<5;i++){
+   const a=i*1.257+.4,d=9+17*t,px=x+Math.cos(a)*d*s,py=y+(Math.sin(a)*d*.48-10*Math.sin(Math.PI*t))*s;
+   this.line([[px,py],[px+Math.cos(a)*3*s,py+Math.sin(a)*2*s]],'#505748',1.2*s)
+  }
+  c.restore()
  }
  // Rasterize immobile geometry once at its native pixel density. Thin depth
  // bands keep the original occlusion order with visitors and rotating blades.
@@ -370,7 +422,21 @@ class DoorScene{
   const items=this.staticItems.slice();const add=(depth,fn,texture=false)=>items.push({depth,fn,texture});
   this.crowd.collect(add);
   for(let car of this.cars)add(this.plane(-150,185),()=>this.vehicle(car));
-  for(let a of this.people){this.shadow(a.x+4,a.y+4,9.8,3.9,.27,.42);add(this.plane(a.x,a.y),()=>{if(a.type!=='giant')this.person(a);EventArt.entourage(this,a);if(a.type==='courier'&&a.mode==='queue')EventArt.courierBadge(this,a,Math.max(0,(a.deadline||0)-this.time))})}
+  for(const a of this.people){
+   if(a.boarded)continue;
+   let draw=a;
+   if(a.fling&&(a.mode==='inside'||a.mode==='flung')&&this.time-a.flingBegan<.30){
+    const t=(this.time-a.flingBegan)/.30,u=t*t*(3-2*t);
+    draw={...a,x:a.fromX+(a.x-a.fromX)*u,y:a.fromY+(a.y-a.fromY)*u}
+   }
+   const height=Math.min(1,a.fly/95);
+   this.shadow(draw.x+4,draw.y+4,9.8-3*height,3.9-height,.27-.14*height,.42);
+   add(this.plane(draw.x,draw.y)+(a.mode==='flung'?a.fly*1.7:0),()=>{
+    if(a.mode==='flung')this.airborneTrail(a);
+    if(a.type!=='giant')this.person(draw);EventArt.entourage(this,draw);
+    if(a.type==='courier'&&a.mode==='queue')EventArt.courierBadge(this,a,Math.max(0,(a.deadline||0)-this.time))
+   })
+  }
   const blades=this.profile.count;
   for(let j=0;j<blades;j++){let a=this.angle+j*Math.PI*2/blades;add(this.plane(r*.59*Math.cos(a+.08),r*.59*Math.sin(a+.08)),()=>this.blade(a,state.levels.blade))}
   add(0,()=>this.hub());items.sort((a,b)=>a.depth-b.depth);
@@ -383,6 +449,7 @@ class DoorScene{
 
   // A small flywheel cap sits above every blade.
   const [hx,hy]=this.p(0,0,47.4);this.dot(hx,hy,5.8*this.scale,3.8*this.scale,'#e9ece1','#42483b',.65*this.scale);
+  for(const a of this.people)if(a.mode==='recover')this.landing(a);
   const f=this.effects;
   if(f.manual){
    const a=f.pointerAngle??this.angle;

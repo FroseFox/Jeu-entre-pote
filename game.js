@@ -6,7 +6,7 @@ let state=newRun(),options={...defaultOptions},angle=.27,speed=0,waiting=26,turn
 let paused=false,tab='equip',audioContext=null,toastTimer=0,toastToken=0,storageOK=true,importing=false;
 const positive=n=>Number.isFinite(n)&&n>=0;
 function freshRuntime(){return {routes:{bus:0,train:0,air:0},balloonClock:0,gulp:0,charge:0,rush:0,opening:0,deliveryClock:0,upgradeAge:0,manual:0,drawPhase:0,adminClock:0,heliClock:0,eventIndex:0}}
-let runtime=freshRuntime();
+let runtime=freshRuntime(),savedSession=null;
 function restore(){
  try{
   const data=JSON.parse(localStorage.getItem(storageKey)||'null');if(!data||![1,2].includes(data.version))return;
@@ -33,25 +33,33 @@ function restore(){
   if(Number.isFinite(data.angle))angle=data.angle;
   if(positive(data.waiting))waiting=data.waiting;
   if(positive(data.turnPart))turnPart=data.turnPart%(Math.PI/2);
-  paused=!!data.paused;
+  paused=!!data.paused;savedSession=data.session;
  }catch{storageOK=false}
 }
 function save(){
  if(importing)return;
- try{localStorage.setItem(storageKey,JSON.stringify({version:2,state,options,angle,waiting,turnPart,paused,runtime}));storageOK=true}catch{storageOK=false}
- $('save-label').textContent=storageOK?'Sauvegarde locale':'Sauvegarde indisponible';
+ try{localStorage.setItem(storageKey,JSON.stringify(sessionSnapshot()));storageOK=true}catch{storageOK=false}
+ $('save-label').textContent=storageOK?'Parties locales':'Sauvegarde indisponible';
 }
 restore();fillIcons();
 const scene=new DoorScene($('world'));scene.maxPeople=options.maxPeople;scene.seed();configureCrowd();
 let rateEvents=[],spawnClock=0,transportClock=0,eventClock=0,restEvent=0,festival=0,repair=0,combo=0,comboClock=0;
-let selectedItem=null,projection=null,holding=null,pointer=null,keySpin=false,sessionClock=0,saveClock=0,uiClock=0,lastTime=0,frameClock=0;
+let selectedItem=null,holding=null,pointer=null,keySpin=false,sessionClock=0,saveClock=0,uiClock=0,lastTime=0,frameClock=0;
+const receipts=[];
+let receiptSerial=0,treasuryTarget=null,targetBox=null;
+const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)');
+function receipt(amount){
+ const last=receipts[receipts.length-1];
+ if(last&&last.age<.24){last.money+=amount;return}
+ receipts.push({money:amount,age:0,id:++receiptSerial,received:false})
+}
 function notify(msg,ms=2100){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);const id=++toastToken;toastTimer=setTimeout(()=>{if(id===toastToken)el.classList.remove('show')},ms)}
 function tone(which){
  if(!options.sound||!options.volume)return;
  try{audioContext??=new (window.AudioContext||window.webkitAudioContext)();if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});
  const ctx=audioContext,o=ctx.createOscillator(),g=ctx.createGain(),t=ctx.currentTime;
- const f=which==='buy'?560:which==='coin'?360:which==='goal'?720:135;
- o.type=which==='spin'?'sine':'triangle';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(which==='spin'?77:f*1.3,t+.095);
+ const f=which==='land'?110:which==='buy'?560:which==='coin'?360:which==='goal'?720:135;
+ o.type=which==='spin'||which==='land'?'sine':'triangle';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(which==='land'?42:which==='spin'?77:f*1.3,t+.095);
  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.028*options.volume/100+.0001,t+.007);g.gain.exponentialRampToValueAtTime(.0001,t+.12);
  o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.13)}catch{}
 }
@@ -168,7 +176,7 @@ function goals(){
  const [active]=nextGoal();showDialog('Objectifs',milestones.map(([n,name])=>record(name,(state.admitted>=n?'✓ ':'')+fmt(n),n===active?'highlight':state.admitted>=n?'done':'')).join(''))
 }
 $('objective').onclick=goals;
-function resetScene(){runtime=freshRuntime();scene.balloons=[];scene.bursts=[];scene.bags=[];scene.effects={};scene.invalidate();speed=0;angle=.27;turnPart=0;waiting=26;combo=0;restEvent=0;festival=0;repair=0;frameClock=0;projection=null;rateEvents=[];spawnClock=transportClock=eventClock=0;scene.people=[];scene.cars=[];scene.labels=[];scene.seed();scene.crowd.reset();configureCrowd();paused=false;controls();updateHUD();refreshShop(true);save()}
+function resetScene(){runtime=freshRuntime();scene.balloons=[];scene.bursts=[];scene.bags=[];scene.effects={};scene.invalidate();speed=0;angle=.27;turnPart=0;waiting=26;combo=0;restEvent=0;festival=0;repair=0;frameClock=0;receipts.length=0;rateEvents=[];spawnClock=transportClock=eventClock=0;scene.people=[];scene.cars=[];scene.labels=[];scene.crowd.reset();scene.seed();configureCrowd();paused=false;controls();updateHUD();refreshShop(true);save()}
 function rebirth(){
  if(state.finished){branchOffice();return}const e=availableEnergy(state);if(!e){showDialog('Réouverture','<p>À partir de 1 000 visiteurs, vous pourrez rouvrir votre entreprise avec un nouveau contrat. L’énergie cumulée finance vos avantages permanents.</p>'+record('Visiteurs accueillis',fmt(state.admitted)+' / 1 000'));return}
  showDialog('Réouverture','<p>Vous recommencez avec une nouvelle porte et votre capital de départ. Vos avantages et votre registre sont conservés. Choisissez le contrat de votre prochaine session.</p>'+record('Énergie acquise','+'+fmt(e))+'<label class="option">Contrat<select id="contract"><option value="economy">Achats à −15 %</option><option value="premium">Recettes à +35 %</option><option value="crowd">Arrivées doublées</option></select></label><button class="primary" id="reopen">Rouvrir l’entreprise</button>');
@@ -180,34 +188,42 @@ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.
 $('cards').addEventListener('contextmenu',e=>{const id=e.target.closest('[data-buy]')?.dataset.buy;if(!id||!state.perks.admin)return;e.preventDefault();state.skipped=state.skipped.includes(id)?state.skipped.filter(k=>k!==id):[...state.skipped,id];refreshShop(true);save()});
 $('journal').onclick=gallery;$('draw-btn').onclick=openPrizes;
 function exportSave(){
- save();const json=localStorage.getItem(storageKey);if(!json){notify('Sauvegarde indisponible');return}
+ const json=JSON.stringify(sessionSnapshot());
  const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));const a=document.createElement('a');
  a.href=url;a.download='round-and-round-sauvegarde.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)
 }
-async function importSave(file){
+function transferButtons(){
+ return '<div class="save-pair"><button class="secondary" id="export-save">Exporter un fichier</button><button class="secondary" id="import-save">Importer un fichier</button></div><input type="file" id="save-file" accept=".json,application/json" hidden>'
+}
+function bindTransfer(back){
+ $('export-save').onclick=exportSave;$('import-save').onclick=()=>$('save-file').click();
+ $('save-file').onchange=e=>importSave(e.target.files[0],back)
+}
+async function importSave(file,back=settings){
  if(!file)return;
  try{
   if(file.size>1024*1024)throw Error();
   const json=await file.text(),data=JSON.parse(json);
   if(![1,2].includes(data.version)||!positive(data.state?.admitted)||!positive(data.state?.cash)||!data.state?.levels)throw Error();
-  showDialog('Reprendre cette partie',record('Visiteurs admis',fmt(data.state.admitted))+record('Trésorerie',fmt(data.state.cash))+'<p>Cette partie remplacera la sauvegarde de ce navigateur.</p><button class="primary" id="accept-save">Charger cette partie</button><button class="secondary" id="cancel-save">Annuler</button>');
-  $('cancel-save').onclick=settings;$('accept-save').onclick=()=>{try{localStorage.setItem(storageKey,json);window.removeEventListener('pagehide',save);window.onbeforeunload=null;importing=true;window.location.reload()}catch{notify('Écriture de la sauvegarde impossible')}}
+  showDialog('Reprendre cette partie',record('Visiteurs admis',fmt(data.state.admitted))+record('Trésorerie',fmt(data.state.cash))+'<p>La partie actuelle sera conservée dans « Parties locales » avant le chargement.</p><button class="primary" id="accept-save">Charger cette partie</button><button class="secondary" id="cancel-save">Annuler</button>');
+  $('cancel-save').onclick=back;$('accept-save').onclick=()=>{try{replaceCurrent(data)}catch{notify('Écriture de la sauvegarde impossible')}}
  }catch{notify('Fichier de sauvegarde invalide')}
 }
 function settings(){
- showDialog('Paramètres','<label class="option">Thème sombre<input id="dark-mode" type="checkbox" '+(options.dark?'checked':'')+'></label><label class="option">Effets sonores<input id="sound-mode" type="checkbox" '+(options.sound?'checked':'')+'></label><label class="option">Volume<input type="range" id="volume" min="0" max="100" value="'+options.volume+'"></label><label class="option">Foule dans la rue<select id="crowd"><option value="0">Selon l’affluence (jusqu’à 2 M)</option>'+[45,95,180,...crowdLimits].map(n=>'<option value="'+n+'">'+format.format(n)+' passants</option>').join('')+'</select></label><p class="subtle">La vue d’ensemble (bouton −) permet de voir les grandes foules. Les entrées et les recettes suivent la porte.</p><div class="tableLabel">Transférer une partie</div><p class="subtle">Utilisez un fichier pour reprendre votre progression sur un autre navigateur ou sur GitHub Pages.</p><div class="save-pair"><button class="secondary" id="export-save">Exporter</button><button class="secondary" id="import-save">Importer</button></div><input type="file" id="save-file" accept=".json,application/json" hidden><button class="secondary" id="reset">Nouvelle partie</button>');
- $('export-save').onclick=exportSave;$('import-save').onclick=()=>$('save-file').click();$('save-file').onchange=e=>importSave(e.target.files[0]);
+ showDialog('Paramètres','<label class="option">Thème sombre<input id="dark-mode" type="checkbox" '+(options.dark?'checked':'')+'></label><label class="option">Effets sonores<input id="sound-mode" type="checkbox" '+(options.sound?'checked':'')+'></label><label class="option">Volume<input type="range" id="volume" min="0" max="100" value="'+options.volume+'"></label><label class="option">Foule dans la rue<select id="crowd"><option value="0">Selon l’affluence (jusqu’à 2 M)</option>'+[45,95,180,...crowdLimits].map(n=>'<option value="'+n+'">'+format.format(n)+' passants</option>').join('')+'</select></label><p class="subtle">La vue d’ensemble (bouton −) permet de voir les grandes foules. Les entrées et les recettes suivent la porte.</p><button class="secondary" id="open-slots">Parties locales</button><div class="tableLabel">Transférer une partie</div><p class="subtle">Utilisez un fichier pour reprendre votre progression sur un autre navigateur ou sur GitHub Pages.</p>'+transferButtons()+'<button class="secondary" id="reset">Nouvelle partie</button>');
+ $('open-slots').onclick=()=>localSaves();bindTransfer(settings);
  $('dark-mode').onchange=e=>{options.dark=e.target.checked;controls();save()};$('sound-mode').onchange=e=>{options.sound=e.target.checked;soundDisplay();tone('coin');save()};$('volume').oninput=e=>{options.volume=Number(e.target.value);save()};$('volume').onchange=()=>tone('coin');
  $('crowd').value=String(options.streetSize);$('crowd').onchange=e=>{options.streetSize=Number(e.target.value);configureCrowd();scene.render(state,options.zoom);save()};
  $('reset').onclick=()=>{showDialog('Nouvelle partie','<p>Effacer cette sauvegarde et repartir dans la boutique de quartier avec une nouvelle porte ? Cette action efface également les avantages permanents.</p><button class="primary" id="confirm">Effacer et recommencer</button><button class="secondary" id="cancel">Garder ma partie</button>');$('confirm').onclick=()=>{state=newRun();resetScene();$('dialog').close();notify('Nouvelle partie')};$('cancel').onclick=settings}
 }
+$('saved-games').onclick=()=>localSaves();
 $('settings').innerHTML=icon('settings');$('settings').onclick=settings;
 $('help').onclick=()=>showDialog('Commandes','<p>Faites tourner la porte pour accueillir les visiteurs. Chaque entrée rapporte des crédits à dépenser dans l’atelier.</p>'+record('Tourner à la main','Tracer un cercle')+record('Donner une impulsion','Clic ou toucher')+record('Assistance de rotation','Maintenir Espace ou la porte')+record('Freiner','Tourner en sens inverse')+record('Éclater un ballon','Cliquer ou toucher')+record('Acheter dans l’atelier','Touches 1 à 6')+record('Pause / Reprendre','P')+record('Ajuster la vue','Molette ou + / −')+record('Fermer une fenêtre','Échap')+'<p class="credit">Adaptation web indépendante du jeu de Murbong. <a href="https://store.steampowered.com/app/5455960/Round_and_Round_Inc/" target="_blank" rel="noopener">Voir le jeu sur Steam</a></p>');
 function canPlay(){return !paused&&!$('dialog').open&&!document.hidden}
 function impulse(amount=1,dir=1){
  if(!canPlay())return;
  const cap=bladeOf(state).top*(state.perks.license?1.3:1);
- speed=Math.max(0,Math.min(cap,speed+dir*amount*(1+state.levels.gear*.25)*(1+state.perks.force*.25)));runtime.manual=.55;tone('spin')
+ speed=Math.max(0,Math.min(cap,speed+dir*amount*(1+state.levels.gear*.25)*(1+state.perks.force*.25)));runtime.manual=.55;if(dir>0&&amount>.2)scene.crowd.pushWave(.8);tone('spin')
 }
 $('crank').addEventListener('pointerdown',e=>{if(e.isPrimary===false||e.button!==0||!canPlay())return;e.preventDefault();holding={id:e.pointerId,clock:0};$('crank').setPointerCapture(e.pointerId);impulse(1.55)});
 $('crank').onclick=e=>{if(e.detail===0)impulse(1.55)};
@@ -275,7 +291,7 @@ function admission(n,fast){
  let extra=0;for(let person of transfer.passengers.slice(0,limit))extra+=guestReward(person,base);
  if(limit>0){
   const income=credit(base*limit*(1+comboBonus())+extra);state.admitted+=limit;
-  rateEvents.push({time:sessionClock,count:limit});projection={money:income,age:0,combo:0};know('walk');tone('coin')
+  rateEvents.push({time:sessionClock,count:limit});receipt(income);know('walk');tone('coin')
  }
  if(milestones.some(([g])=>before<g&&state.admitted>=g)){tone('goal');notify('Objectif atteint · '+fmt(milestones.filter(([g])=>g<=state.admitted).at(-1)[0])+' visiteurs');save()}
  if(!state.finished&&state.admitted>=humanity)awardBranch()
@@ -340,20 +356,60 @@ function tick(dt){
   admission(n,fast)
  }
  while(rateEvents.length&&sessionClock-rateEvents[0].time>60)rateEvents.shift();
+ let landed=false;
  for(const e of scene.update(dt,speed,angle)){
+  if(e.kind==='land')landed=true;
   if(e.kind==='balloon')balloonReward();
   if(e.kind==='unload'){waiting+=e.count;notify('Arrivée · '+fmt(e.count)+' voyageurs')}
   if(e.kind==='vipLeft')notify('Cortège reparti · freinez pour accueillir les VIP')
  }
+ if(landed)tone('land');
  scene.crowd.setPopulation(state,waiting,dt);
- if(projection){projection.age+=dt;if(projection.age>1.15)projection=null}
+ for(const item of receipts){
+  item.age+=dt;
+  if(!item.received&&item.age>=.93){
+   item.received=true;
+   if(!reducedMotion?.matches)$('cash').animate?.([{transform:'scale(1.09)'},{transform:'scale(1)'}],{duration:175,easing:'ease-out'})
+  }
+ }
+ while(receipts.length&&receipts[0].age>1.12)receipts.shift();
 }
 
 function feedback(){
- if(!projection)return;const c=scene.c,[x,y]=scene.p(13,-scene.radius-3,25+projection.age*11),s=Math.min(1.22,Math.max(.85,scene.scale*.87));
- const label='+'+fmt(projection.money);c.save();c.translate(x,y);c.scale(s,s);c.globalAlpha=Math.min(1,(1.15-projection.age)*4);
- c.font='bold 12px DM, sans-serif';let w=c.measureText(label).width+22;c.fillStyle=projection.combo?'#272a24':'#fbfbf7';c.strokeStyle='#35382f';c.lineWidth=1;
- c.beginPath();c.roundRect(-w/2,-10,w,21,5);c.fill();c.stroke();c.fillStyle=projection.combo?'white':'#20231b';c.textAlign='center';c.fillText(label,0,4);c.restore()
+ if(!receipts.length)return;
+ // Canvas coordinates are local to the play area. Measure the counter only
+ // when its layout changes, even if a whole group pays in one frame.
+ if(targetBox!==scene.boxSize){
+  const marker=$('cash-coin')?.getBoundingClientRect?.();
+  const box=scene.canvas.getBoundingClientRect();
+  treasuryTarget=marker?[marker.left+marker.width/2-box.left,marker.top+marker.height/2-box.top]:[47,70];
+  targetBox=scene.boxSize
+ }
+ const c=scene.c,[sx,sy]=scene.p(9,-scene.radius*.70,42),[tx,ty]=treasuryTarget;
+ for(const item of receipts){
+  const t=item.age,spread=((item.id%3)-1)*19;
+  const labelY=sy-9-Math.min(1,t/.72)*24;
+  c.save();
+  if(t<.84){
+   c.globalAlpha=Math.min(1,t/.07,(.84-t)/.2);
+   c.translate(sx+spread,labelY-(item.id%2)*9);const pop=1+.12*Math.sin(Math.min(1,t/.25)*Math.PI);
+   c.scale(pop,pop);c.font='bold 12px DM, sans-serif';
+   const label='+'+fmt(item.money),w=c.measureText(label).width+13;
+   c.fillStyle='#fbfbf7';c.strokeStyle='#35382f';c.lineWidth=1;
+   c.beginPath();c.roundRect(-w/2,-10,w,18,5);c.fill();c.stroke();c.fillStyle='#252820';c.textAlign='center';c.fillText(label,0,3);
+  }
+  c.restore();
+  if(reducedMotion?.matches)continue;
+  const count=item.money<4?1:item.money<40?2:3;
+  for(let j=0;j<count;j++){
+   const u=Math.min(1,Math.max(0,(t-.055*j)/.93));if(u<=0||u>=1)continue;
+   const h=u*u*(3-2*u),bow=4*u*(1-u);
+   const x=sx+(tx-sx)*h+(spread+j*9)*bow,y=sy+(ty-sy)*h-bow*(44+j*13);
+   const size=(4.6+Math.sin(Math.PI*u)*1.1)*Math.min(1,u/.08);
+   const rx=size*(.35+.65*Math.abs(Math.cos(2*Math.PI*u+j*.5)));
+   scene.dot(x,y,rx,size,'#30332b','#f5f6ee',1);scene.dot(x,y,rx*.31,size*.31,'#f1f2e9')
+  }
+ }
 }
 function loop(now){
  let dt=lastTime?Math.min(.12,(now-lastTime)/1000):0;lastTime=now;if(canPlay())tick(dt);
@@ -361,4 +417,4 @@ function loop(now){
  uiClock+=dt;if(uiClock>.13){uiClock=0;updateHUD();refreshShop()}saveClock+=dt;if(saveClock>4){saveClock=0;save()}
  requestAnimationFrame(loop)
 }
-controls();updateHUD();refreshShop(true);scene.angle=angle;scene.render(state,options.zoom);document.fonts.ready.then(()=>scene.invalidate());requestAnimationFrame(loop);
+resumeSession(savedSession);savedSession=null;controls();updateHUD();refreshShop(true);scene.angle=angle;scene.render(state,options.zoom);document.fonts.ready.then(()=>scene.invalidate());requestAnimationFrame(loop);

@@ -92,13 +92,14 @@ class StreetCrowd{
  }
  reset(){
   this.front=0;this.rear=0;this.init=false;this.inFlow=0;this.outFlow=0;
-  this.departures=0;this.gate=[];this.serial=0;this.visible=0;this.bands=0;
+  this.departures=0;this.gate=[];this.serial=0;this.waves=[];this.visible=0;this.bands=0;
  }
  setPopulation(s,waiting,dt){
   // Pedestrians already in the neighbourhood and waiting customers share
   // the pavement. Only the game's existing admission code earns money.
   const residents=550+Math.min(this.limit,180*(waveSize(s)-1)+12*s.levels.expand);
-  const close=this.scene.people.length,room=Math.max(0,this.limit-close-this.gate.length);
+  const close=this.scene.people.length,visibleClose=close-this.scene.people.filter(p=>p.boarded).length;
+  const room=Math.max(0,this.limit-visibleClose-this.gate.length);
   const f=Math.min(this.limit,Math.max(0,waiting-close*.72)+residents*.64);
   const b=Math.min(this.limit,Math.max(0,this.departures-close*.28)+residents*.36);
   const ratio=this.fixed?room/Math.max(1,f+b):Math.min(1,room/Math.max(1,f+b));
@@ -107,36 +108,84 @@ class StreetCrowd{
   if(this.front+this.rear>room){const k=room/(this.front+this.rear);this.front*=k;this.rear*=k}
   this.init=true;
  }
- passage(count,individuals){
+ // Keep a visitor's drawing from their place in line to the bottom step.
+ // The logical actor continues to handle guest bonuses and admission rules.
+ board(actor,fromStreet=false){
+  const id=++this.serial,r=this.scene.radius,lane=crowdNoise(id+11);
+  const x=actor?actor.x:(lane-.5)*62,y=actor?actor.y:r+22+crowdNoise(id+41)*35;
+  const ride={id,lane,phase:'entry',time:0,turn:0,x,y,startX:x,startY:y,reach:r*(.55+.26*lane),sink:0,
+    entryTime:Math.max(.22,Math.min(.72,Math.hypot(x,y-r)/270))+.12*crowdNoise(id+54),pose:actor?{...actor,fly:0,move:1}:null};
+  if(actor)actor.boarded=true;
+  if(fromStreet){ride.phase='exit';ride.walkTime=Math.max(.6,Math.hypot(x,y+r+28)/89)}
+  this.gate.push(ride)
+ }
+ pushWave(strength){
+  const last=this.waves[this.waves.length-1];
+  if(last&&this.scene.time-last.time<.26){last.strength=Math.max(last.strength,strength);return}
+  this.waves.push({time:this.scene.time,strength})
+ }
+ passage(count,actors){
   this.departures=Math.min(this.limit*3,this.departures+count);
-  // These are representatives of a paid group, with no gameplay callbacks.
-  const extra=Math.min(240-this.gate.length,Math.max(0,count-individuals));
-  for(let i=0;i<extra;i++){
-   const id=++this.serial;
-   this.gate.push({id,travel:0,lane:crowdNoise(id+11),offset:crowdNoise(id+89),passed:0})
-  }
+  this.pushWave(Math.min(1,.68+Math.log2(1+count)*.07));
+  for(const actor of actors)this.board(actor);
+  const extra=Math.min(Math.max(0,160-this.gate.length),Math.max(0,count-actors.length));
+  // One batch may represent millions. Only people that fit through the
+  // opening at this instant need individual drawings.
+  const samples=Math.min(extra,24);
+  for(let i=0;i<samples;i++)this.board(null)
  }
  update(dt,speed){
-  const v=Math.abs(speed);
+  const v=Math.abs(speed),r=this.scene.radius;
   this.departures*=Math.exp(-dt/18);
   this.inFlow=(this.inFlow+dt*(.16+Math.min(v,12)*.23))%1048576;
   this.outFlow=(this.outFlow+dt*(.65+Math.min(v,12)*.22))%1048576;
+  while(this.waves.length&&this.scene.time-this.waves[0].time>1)this.waves.shift();
   let keep=0;
   for(const p of this.gate){
-   if(p.travel<Math.PI)p.travel+=v*dt;else p.passed+=dt;
-   if(p.passed<2.5)this.gate[keep++]=p
+   p.time+=dt;
+   const laneX=(p.lane-.5)*33;
+   if(p.phase==='entry'){
+    const t=Math.min(1,p.time/p.entryTime),u=t*t*(3-2*t);
+    p.x=p.startX*(1-u);p.y=p.startY+(p.reach-p.startY)*u;
+    if(t===1){p.phase='turn';p.time=0}
+   }else if(p.phase==='turn'){
+    const heavy=p.pose?.type==='giant'?.75:1;
+    p.turn=Math.min(Math.PI,p.turn+dt*Math.max(2.5,v)*heavy);
+    p.x=-Math.sin(p.turn)*p.reach;p.y=Math.cos(p.turn)*p.reach;
+    if(p.turn===Math.PI){
+     p.phase='exit';p.time=0;p.startX=p.x;p.startY=p.y;p.walkTime=.58+p.lane*.23
+    }
+   }else if(p.phase==='exit'){
+    const t=Math.min(1,p.time/p.walkTime);
+    p.x=p.startX+(laneX-p.startX)*t;p.y=p.startY+(-r-26-p.startY)*t;
+    if(t===1){p.phase='stairs';p.time=0}
+   }else{
+    const t=Math.min(1,p.time/(.92+.13*p.lane));
+    p.x=laneX;p.y=-r-26-52*t;p.sink=t*(p.pose?.type==='giant'?92:64);
+    if(t===1)continue
+   }
+   this.gate[keep++]=p
   }
   this.gate.length=keep
  }
  placeGate(add){
-  const sc=this.scene,r=sc.radius;
+  const sc=this.scene;
   for(const p of this.gate){
-   const angle=Math.PI/2+p.travel+(p.offset-.5)*.27;
-   const reach=r*(.42+.48*p.lane);
-   const x=Math.cos(angle)*reach+(p.passed?Math.sin(p.id)*12*p.passed:0);
-   const y=Math.sin(angle)*reach-p.passed*60;
-   const at=sc.p(x,y),face=Number(p.passed>0);
-   add(sc.plane(x,y),()=>this.art.actor(sc.c,at[0],at[1],sc.scale,p.id,(Math.floor(sc.time*8)+p.id)%walkFrames,face))
+   const out=p.phase==='exit'||p.phase==='stairs',feet=sc.p(p.x,p.y);
+   add(sc.plane(p.x,p.y),()=>{
+    const c=sc.c,s=sc.scale;
+    if(p.sink){
+     c.save();c.beginPath();c.rect(feet[0]-85*s,feet[1]-140*s,170*s,140*s);c.clip();
+    }
+    if(p.pose){
+     const a=p.pose;a.x=p.x;a.y=p.y;a.fly=-p.sink;a.age=p.time;a.mode=out?'out':'inside';
+     if(!p.sink)sc.shadow(p.x+4,p.y+4,9.8,3.9,.24,.42);
+     if(a.type!=='giant')sc.person(a);EventArt.entourage(sc,a)
+    }else{
+     this.art.actor(c,feet[0],feet[1]+p.sink*.85*s,s,p.id,(Math.floor(sc.time*8)+p.id)%walkFrames,Number(out))
+    }
+    if(p.sink)c.restore()
+   })
   }
  }
  // A repeat of the row texture contains sixteen full drawings, including
@@ -200,21 +249,29 @@ class StreetCrowd{
   };
   for(let r=first;r<=last;r++){
    const inRow=before(r+1)-before(r),distance=distanceAt(r);
-   const depth=sign*(base+distance),rowID=(out?r-whole:r+whole)&65535;
+   let surge=0;
+   if(distance<160)for(const wave of this.waves){
+    const u=((sc.time-wave.time)*168-distance)/29;
+    if(Math.abs(u)<1)surge=Math.max(surge,(1-u*u)**2*wave.strength)
+   }
+   const depth=sign*(base+distance-(out?0:6*surge)),rowID=(out?r-whole:r+whole)&65535;
    const sway=11*Math.sin(distance*.019+(out?1:0))+7*Math.sin(distance*.043);
    const center=sign*(-sc.radius*.373-.55*distance+sway)+Math.min(580,r*2.8)*Math.sin(r*.012+out);
    const gap=Math.min(190,Math.max(0,(r-23)*1.18))*(.75+.25*Math.sin(r*.017+out));
    const bankEdge=sc.branch==='seaside'?(depth*.928-141*.665)/.248:-Infinity;
-   const start=Math.max(bankEdge,center-inRow*crowdStride/2-gap+(crowdNoise(rowID+13)-.5)*9);
+   const nearGate=distance<(out?80:64);
+   const aisle=out?Math.min(89,Math.max(0,(80-distance)*3.4)):Math.min(35,Math.max(0,64-distance));
+   const extraGap=nearGate?aisle+surge*(out?7:14):0;
+   const start=Math.max(bankEdge,center-inRow*crowdStride/2-gap-extraGap/2+(crowdNoise(rowID+13)-.5)*9);
 
    const side=Math.floor(inRow*(.26+.035*Math.sin(r*.014+out))),split=gap>0;
-   const bounds=split?[0,side,inRow-side,inRow]:[0,inRow];
+   const bounds=nearGate?[0,Math.floor(inRow/2),inRow]:split?[0,side,inRow-side,inRow]:[0,inRow];
    const groupRow=grouped&&r>=8&&r!==far;
    if(!groupRow||r%80===0||r%24===0||batch&&batch.parts.length!==bounds.length-1)flush();
    if(groupRow&&!batch)batch={first:depth,last:depth,parts:Array.from({length:bounds.length-1},()=>[])};
    if(batch)batch.last=depth;
    for(let part=0;part<bounds.length-1;part++){
-    const partStart=start+gap*part;
+    const partStart=start+(nearGate?extraGap:gap)*part;
     const begin=Math.max(bounds[part],Math.floor((leftBound-partStart)/crowdStride));
     const end=Math.min(bounds[part+1],Math.ceil((rightBound-partStart)/crowdStride));
     if(end<=begin)continue;

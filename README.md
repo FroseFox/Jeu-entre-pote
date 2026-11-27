@@ -11,7 +11,7 @@ Jeu incrémental en français. Faites tourner la porte, accueillez les visiteurs
 - Dans les paramètres, « Foule dans la rue » suit l’affluence ou affiche jusqu’à 2 000 000 de passants. Le bouton − élargit la vue. Cliquez sur le pourcentage pour revenir à 100 %.
 - Le carnet de terrain conserve les visiteurs rencontrés et les pales débloquées.
 
-La progression est enregistrée dans le navigateur. Les paramètres permettent d’exporter et d’importer une partie au format JSON.
+Le bouton **Parties locales**, en bas de l’écran, permet d’enregistrer et de charger des copies nommées sur cet appareil. La partie en cours se sauvegarde automatiquement. Un chargement conserve la partie précédente sous **Avant le dernier chargement**. Utilisez **Exporter un fichier** et **Importer un fichier** pour transférer une partie au format JSON.
 
 ## Références
 
